@@ -5,61 +5,37 @@ using SharpFileSystem.Collections;
 
 namespace SharpFileSystem.FileSystems
 {
-    public class SubFileSystem: IFileSystem
-    {
-        public IFileSystem FileSystem { get; private set; }
-        public FileSystemPath Root { get; private set; }
+	public class SubFileSystem : IFileSystem
+	{
+		public SubFileSystem(IFileSystem fileSystem, FileSystemPath root)
+		{
+			FileSystem = fileSystem;
+			Root = root;
+		}
 
-        public SubFileSystem(IFileSystem fileSystem, FileSystemPath root)
-        {
-            FileSystem = fileSystem;
-            Root = root;
-        }
+		public IFileSystem FileSystem { get; }
+		public FileSystemPath Root { get; }
 
-        protected FileSystemPath AppendRoot(FileSystemPath path)
-        {
-            return Root.AppendPath(path);
-        }
+		public void Dispose() { FileSystem.Dispose(); }
 
-        protected FileSystemPath RemoveRoot(FileSystemPath path)
-        {
-            return path.RemoveParent(Root);
-        }
+		public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
+		{
+			var paths = FileSystem.GetEntities(AppendRoot(path));
+			return new EnumerableCollection<FileSystemPath>(paths.Select(p => RemoveRoot(p)), paths.Count);
+		}
 
-        public void Dispose()
-        {
-            FileSystem.Dispose();
-        }
+		public bool Exists(FileSystemPath path) { return FileSystem.Exists(AppendRoot(path)); }
 
-        public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
-        {
-            var paths = FileSystem.GetEntities(AppendRoot(path));
-            return new EnumerableCollection<FileSystemPath>(paths.Select(p => RemoveRoot(p)), paths.Count);
-        }
+		public Stream CreateFile(FileSystemPath path) { return FileSystem.CreateFile(AppendRoot(path)); }
 
-        public bool Exists(FileSystemPath path)
-        {
-            return FileSystem.Exists(AppendRoot(path));
-        }
+		public Stream OpenFile(FileSystemPath path, FileAccess access) { return FileSystem.OpenFile(AppendRoot(path), access); }
 
-        public Stream CreateFile(FileSystemPath path)
-        {
-            return FileSystem.CreateFile(AppendRoot(path));
-        }
+		public void CreateDirectory(FileSystemPath path) { FileSystem.CreateDirectory(AppendRoot(path)); }
 
-        public Stream OpenFile(FileSystemPath path, FileAccess access)
-        {
-            return FileSystem.OpenFile(AppendRoot(path), access);
-        }
+		public void Delete(FileSystemPath path) { FileSystem.Delete(AppendRoot(path)); }
 
-        public void CreateDirectory(FileSystemPath path)
-        {
-            FileSystem.CreateDirectory(AppendRoot(path));
-        }
+		protected FileSystemPath AppendRoot(FileSystemPath path) { return Root.AppendPath(path); }
 
-        public void Delete(FileSystemPath path)
-        {
-            FileSystem.Delete(AppendRoot(path));
-        }
-    }
+		protected FileSystemPath RemoveRoot(FileSystemPath path) { return path.RemoveParent(Root); }
+	}
 }

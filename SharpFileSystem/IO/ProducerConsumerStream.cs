@@ -4,145 +4,105 @@ using System.Threading;
 
 namespace SharpFileSystem.IO
 {
-    public class ProducerConsumerStream : Stream
-    {
-        public override bool CanRead
-        {
-            get { return true; }
-        }
-
-        public override bool CanSeek
-        {
-            get { return false; }
-        }
-
-        public override bool CanWrite
-        {
-            get { return true; }
-        }
-
-        public override void Flush()
-        {
-        }
-
-        public override long Length
-        {
-            get { throw new NotSupportedException(); }
-        }
-
-        public override long Position
-        {
-            get
-            {
-                throw new NotSupportedException();
-            }
-            set
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+	public class ProducerConsumerStream : Stream
+	{
+		readonly CircularBuffer<byte> _buffer = new CircularBuffer<byte>(4096);
+		bool _closed;
+		bool _isWritingStalled;
 
 
+		readonly object _readLocker = new object();
+		readonly object _writeLocker = new object();
 
-        object _readLocker = new object();
-        object _writeLocker = new object();
-        bool _closed = false;
-        bool _isWritingStalled = false;
+		public override bool CanRead => true;
 
-        private CircularBuffer<byte> _buffer = new CircularBuffer<byte>(4096);
+		public override bool CanSeek => false;
 
-        bool IsWriteable
-        {
-            get { return WriteableCount > 0; }
-        }
+		public override bool CanWrite => true;
 
-        long WriteableCount
-        {
-            get { return _buffer.Capacity - _buffer.Size; }
-        }
+		public override long Length => throw new NotSupportedException();
 
-        public ProducerConsumerStream()
-        {
-        }
+		public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-        public override void Close()
-        {
-            _closed = true;
-            lock (_readLocker)
-            {
-                Monitor.Pulse(_readLocker);
-            }
-            lock (_writeLocker)
-            {
-                Monitor.Pulse(_writeLocker);
-            }
-            base.Close();
-        }
+		bool IsWriteable => WriteableCount > 0;
 
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            while (true)
-            {
-                lock (_readLocker)
-                {
-                    int readCount = _buffer.Get(buffer, offset, count);
-                    if (readCount == 0)
-                    {
-                        if (_closed)
-                            return 0;
-                        Monitor.Wait(_readLocker);
-                        continue;
-                    }
+		long WriteableCount => _buffer.Capacity - _buffer.Size;
 
-                    if (_isWritingStalled)
-                    {
-                        lock (_writeLocker)
-                        {
-                            Monitor.Pulse(_writeLocker);
-                        }
-                    }
-                    return readCount;
-                }
-            }
-        }
+		public override void Flush() { }
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            lock(_readLocker)
-            {
-                int writeCount = Math.Min((int)WriteableCount, count - offset);
-                while (offset < count)
-                {
-                    if (!IsWriteable)
-                    {
-                        _isWritingStalled = true;
-                        lock (_writeLocker)
-                        {
-                            Monitor.Exit(_readLocker);
-                            Monitor.Wait(_writeLocker);
-                            Monitor.Enter(_readLocker);
-                        }
-                        _isWritingStalled = false;
-                        if (_closed)
-                            break;
-                    }
-                    _buffer.Put(buffer, offset, writeCount);
-                    offset += writeCount;
-                    writeCount = Math.Min((int)WriteableCount, count - offset);
+		public override long Seek(long offset, SeekOrigin origin) { throw new NotSupportedException(); }
 
-                    Monitor.Pulse(_readLocker);
-                }
-            }
-        }
-    }
+		public override void SetLength(long value) { throw new NotSupportedException(); }
+
+		public override void Close()
+		{
+			_closed = true;
+			lock (_readLocker)
+			{
+				Monitor.Pulse(_readLocker);
+			}
+
+			lock (_writeLocker)
+			{
+				Monitor.Pulse(_writeLocker);
+			}
+
+			base.Close();
+		}
+
+		public override int Read(byte[] buffer, int offset, int count)
+		{
+			while (true)
+				lock (_readLocker)
+				{
+					var readCount = _buffer.Get(buffer, offset, count);
+					if (readCount == 0)
+					{
+						if (_closed)
+							return 0;
+						Monitor.Wait(_readLocker);
+						continue;
+					}
+
+					if (_isWritingStalled)
+						lock (_writeLocker)
+						{
+							Monitor.Pulse(_writeLocker);
+						}
+
+					return readCount;
+				}
+		}
+
+		public override void Write(byte[] buffer, int offset, int count)
+		{
+			lock (_readLocker)
+			{
+				var writeCount = Math.Min((int) WriteableCount, count - offset);
+				while (offset < count)
+				{
+					if (!IsWriteable)
+					{
+						_isWritingStalled = true;
+						lock (_writeLocker)
+						{
+							Monitor.Exit(_readLocker);
+							Monitor.Wait(_writeLocker);
+							Monitor.Enter(_readLocker);
+						}
+
+						_isWritingStalled = false;
+						if (_closed)
+							break;
+					}
+
+					_buffer.Put(buffer, offset, writeCount);
+					offset += writeCount;
+					writeCount = Math.Min((int) WriteableCount, count - offset);
+
+					Monitor.Pulse(_readLocker);
+				}
+			}
+		}
+	}
 }

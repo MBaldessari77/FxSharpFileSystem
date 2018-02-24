@@ -2,40 +2,24 @@ using System;
 
 namespace SharpFileSystem
 {
-    public class FileSystemEntity: IEquatable<FileSystemEntity>
-    {
-        public IFileSystem FileSystem { get; private set; }
-        public FileSystemPath Path { get; private set; }
-        public string Name { get { return Path.EntityName; } }
+	public abstract class FileSystemEntity : IEquatable<FileSystemEntity>
+	{
+		protected FileSystemEntity(IFileSystem fileSystem, FileSystemPath path)
+		{
+			FileSystem = fileSystem;
+			Path = path;
+		}
 
-        public FileSystemEntity(IFileSystem fileSystem, FileSystemPath path)
-        {
-            FileSystem = fileSystem;
-            Path = path;
-        }
+		public IFileSystem FileSystem { get; }
+		public FileSystemPath Path { get; }
+		public string Name => Path.EntityName;
 
-        public override bool Equals(object obj)
-        {
-            var other = obj as FileSystemEntity;
-            return (other != null) && ((IEquatable<FileSystemEntity>) this).Equals(other);
-        }
+		bool IEquatable<FileSystemEntity>.Equals(FileSystemEntity other) { return FileSystem.Equals(other.FileSystem) && Path.Equals(other.Path); }
 
-        public override int GetHashCode()
-        {
-            return FileSystem.GetHashCode() ^ Path.GetHashCode();
-        }
+		public override bool Equals(object obj) { return obj is FileSystemEntity other && ((IEquatable<FileSystemEntity>) this).Equals(other); }
 
-        bool IEquatable<FileSystemEntity>.Equals(FileSystemEntity other)
-        {
-            return FileSystem.Equals(other.FileSystem) && Path.Equals(other.Path);
-        }
+		public override int GetHashCode() { return FileSystem.GetHashCode() ^ Path.GetHashCode(); }
 
-        public static FileSystemEntity Create(IFileSystem fileSystem, FileSystemPath path)
-        {
-            if (path.IsFile)
-                return new File(fileSystem, path);
-            else
-                return new Directory(fileSystem, path);
-        }
-    }
+		public static FileSystemEntity Create(IFileSystem fileSystem, FileSystemPath path) { return path.IsFile ? (FileSystemEntity) new File(fileSystem, path) : new Directory(fileSystem, path); }
+	}
 }
