@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Marco Baldessari</Authors>
+    <Company />
+    <PackageProjectUrl>https://github.com/waldrix/FxSharpFileSystem</PackageProjectUrl>
+    <PackageId>FxSharpFileSystem</PackageId>
+    <Product>FxSharpFileSystem</Product>
   </PropertyGroup>
 
 </Project>
