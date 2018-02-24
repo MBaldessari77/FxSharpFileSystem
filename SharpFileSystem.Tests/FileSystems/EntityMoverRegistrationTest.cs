@@ -1,63 +1,56 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NUnit.Framework;
 using SharpFileSystem.Collections;
 using SharpFileSystem.FileSystems;
+using Xunit;
 
 namespace SharpFileSystem.Tests.FileSystems
 {
-    [TestFixture]
-    public class EntityMoverRegistrationTest
-    {
-        private TypeCombinationDictionary<IEntityMover> Registration;
-        private IEntityMover physicalEntityMover = new PhysicalEntityMover();
-        private IEntityMover standardEntityMover = new StandardEntityMover();
+	public class EntityMoverRegistrationTest
+	{
+		public EntityMoverRegistrationTest()
+		{
+			_registration = new TypeCombinationDictionary<IEntityMover>();
+			_registration.AddLast(typeof(PhysicalFileSystem), typeof(PhysicalFileSystem), _physicalEntityMover);
+			_registration.AddLast(typeof(IFileSystem), typeof(IFileSystem), _standardEntityMover);
+		}
 
-        [SetUp]
-        public void Initialize()
-        {
-            Registration = new TypeCombinationDictionary<IEntityMover>();
-            Registration.AddLast(typeof(PhysicalFileSystem), typeof(PhysicalFileSystem), physicalEntityMover);
-            Registration.AddLast(typeof(IFileSystem), typeof(IFileSystem), standardEntityMover);
-        }
+		readonly TypeCombinationDictionary<IEntityMover> _registration;
+		readonly IEntityMover _physicalEntityMover = new PhysicalEntityMover();
+		readonly IEntityMover _standardEntityMover = new StandardEntityMover();
 
-        [Test]
-        public void When_MovingFromPhysicalToGenericFileSystem_Expect_StandardEntityMover()
-        {
-            Assert.AreEqual(
-                Registration.GetSupportedRegistration(typeof(PhysicalFileSystem), typeof(IFileSystem)).Value,
-                standardEntityMover
-                );
-        }
+		[Fact]
+		public void When_MovingFromGenericToGenericFileSystem_Expect_StandardEntityMover()
+		{
+			Assert.Equal(
+				_standardEntityMover,
+				_registration.GetSupportedRegistration(typeof(IFileSystem), typeof(IFileSystem)).Value
+			);
+		}
 
-        [Test]
-        public void When_MovingFromOtherToPhysicalFileSystem_Expect_StandardEntityMover()
-        {
-            Assert.AreEqual(
-                Registration.GetSupportedRegistration(typeof(IFileSystem), typeof(PhysicalFileSystem)).Value,
-                standardEntityMover
-                );
-        }
+		[Fact]
+		public void When_MovingFromOtherToPhysicalFileSystem_Expect_StandardEntityMover()
+		{
+			Assert.Equal(
+				_standardEntityMover,
+				_registration.GetSupportedRegistration(typeof(IFileSystem), typeof(PhysicalFileSystem)).Value
+			);
+		}
 
-        [Test]
-        public void When_MovingFromGenericToGenericFileSystem_Expect_StandardEntityMover()
-        {
-            Assert.AreEqual(
-                Registration.GetSupportedRegistration(typeof(IFileSystem), typeof(IFileSystem)).Value,
-                standardEntityMover
-                );
-        }
+		[Fact]
+		public void When_MovingFromPhysicalToGenericFileSystem_Expect_StandardEntityMover()
+		{
+			Assert.Equal(
+				_standardEntityMover,
+				_registration.GetSupportedRegistration(typeof(PhysicalFileSystem), typeof(IFileSystem)).Value
+			);
+		}
 
-        [Test]
-        public void When_MovingFromPhysicalToPhysicalFileSystem_Expect_PhysicalEntityMover()
-        {
-            Assert.AreEqual(
-                Registration.GetSupportedRegistration(typeof(PhysicalFileSystem), typeof(PhysicalFileSystem)).Value,
-                physicalEntityMover
-                );
-        }
-    }
+		[Fact]
+		public void When_MovingFromPhysicalToPhysicalFileSystem_Expect_PhysicalEntityMover()
+		{
+			Assert.Equal(
+				_physicalEntityMover,
+				_registration.GetSupportedRegistration(typeof(PhysicalFileSystem), typeof(PhysicalFileSystem)).Value
+			);
+		}
+	}
 }

@@ -1,320 +1,324 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using SharpFileSystem;
-using NUnit.Framework;
-using System;
+using Xunit;
 
 namespace SharpFileSystem.Tests
 {
-    /// <summary>
-    ///This is a test class for FileSystemPathTest and is intended
-    ///to contain all FileSystemPathTest Unit Tests
-    ///</summary>
-    [TestFixture]
-    public class FileSystemPathTest
-    {
-        private FileSystemPath[] _paths = new[]
-                                                    {
-                                                        root,
-                                                        directoryA,
-                                                        fileA,
-                                                        directoryB,
-                                                        fileB
-                                                    };
-        private IEnumerable<FileSystemPath> Directories { get { return _paths.Where(p => p.IsDirectory); } }
-        private IEnumerable<FileSystemPath> Files { get { return _paths.Where(p => p.IsFile); } }
+	/// <summary>
+	///     This is a test class for FileSystemPathTest and is intended
+	///     to contain all FileSystemPathTest Unit Tests
+	/// </summary>
+	public class FileSystemPathTest
+	{
+		readonly FileSystemPath[] _paths =
+		{
+			_root,
+			DirectoryA,
+			_fileA,
+			_directoryB,
+			_fileB
+		};
 
-        private static readonly FileSystemPath directoryA = FileSystemPath.Parse("/directorya/");
-        private static FileSystemPath fileA = FileSystemPath.Parse("/filea");
-        private static FileSystemPath directoryB = FileSystemPath.Parse("/directorya/directoryb/");
-        private static FileSystemPath fileB = FileSystemPath.Parse("/directorya/fileb.txt");
-        private static FileSystemPath root = FileSystemPath.Root;
-        private FileSystemPath fileC;
+		IEnumerable<FileSystemPath> Directories { get { return _paths.Where(p => p.IsDirectory); } }
+		IEnumerable<FileSystemPath> Files { get { return _paths.Where(p => p.IsFile); } }
 
-        public FileSystemPathTest()
-        {
-            
-        }
+		static readonly FileSystemPath DirectoryA = FileSystemPath.Parse("/directorya/");
+		static FileSystemPath _fileA = FileSystemPath.Parse("/filea");
+		static FileSystemPath _directoryB = FileSystemPath.Parse("/directorya/directoryb/");
+		static FileSystemPath _fileB = FileSystemPath.Parse("/directorya/fileb.txt");
+		static FileSystemPath _root = FileSystemPath.Root;
+		FileSystemPath _fileC;
 
-        /// <summary>
-        ///A test for Root
-        ///</summary>
-        [Test]
-        public void RootTest()
-        {
-            Assert.AreEqual(FileSystemPath.Parse("/"), root);
-        }
+		/// <summary>
+		///     A test for AppendDirectory
+		/// </summary>
+		[Fact]
+		public void AppendDirectoryTest()
+		{
+			foreach (var d in Directories)
+				Assert.True(d.AppendDirectory("dir").IsDirectory);
+			foreach (var d in Directories)
+				Assert.True(d.AppendDirectory("dir").EntityName == "dir");
+			foreach (var d in Directories)
+				Assert.True(d.AppendDirectory("dir").ParentPath == d);
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<InvalidOperationException>(() => _fileA.AppendDirectory("dir"));
+			EAssert.Throws<ArgumentException>(() => _root.AppendDirectory("dir/dir"));
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
 
-        /// <summary>
-        ///A test for ParentPath
-        ///</summary>
-        [Test]
-        public void ParentPathTest()
-        {
-            Assert.IsTrue(
-                Directories
-                    .Where(d => d.GetDirectorySegments().Length == 1)
-                    .All(d => d.ParentPath == root)
-                    );
+		/// <summary>
+		///     A test for AppendFile
+		/// </summary>
+		[Fact]
+		public void AppendFileTest()
+		{
+			foreach (var d in Directories)
+				Assert.True(d.AppendFile("file").IsFile);
+			foreach (var d in Directories)
+				Assert.True(d.AppendFile("file").EntityName == "file");
+			foreach (var d in Directories)
+				Assert.True(d.AppendFile("file").ParentPath == d);
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<InvalidOperationException>(() => _fileA.AppendFile("file"));
+			EAssert.Throws<ArgumentException>(() => DirectoryA.AppendFile("dir/file"));
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
 
-            Assert.IsFalse(!Files.All(f => f.RemoveChild(root.AppendFile(f.EntityName)) == f.ParentPath));
-            EAssert.Throws<InvalidOperationException>(() => Assert.AreEqual(root.ParentPath, root.ParentPath));
-        }
+		/// <summary>
+		///     A test for AppendPath
+		/// </summary>
+		[Fact]
+		public void AppendPathTest()
+		{
+			Assert.True(Directories.All(p => p.AppendPath(_root) == p));
+			Assert.True(Directories.All(p => p.AppendPath("") == p));
 
-        /// <summary>
-        ///A test for IsRoot
-        ///</summary>
-        [Test]
-        public void IsRootTest()
-        {
-            Assert.IsTrue(root.IsRoot);
-            Assert.IsFalse(directoryA.IsRoot);
-            Assert.IsFalse(fileA.IsRoot);
-        }
+			var subpath = FileSystemPath.Parse("/dir/file");
+			var subpathstr = "dir/file";
+			foreach (var p in Directories)
+				Assert.True(p.AppendPath(subpath).ParentPath.ParentPath == p);
+			foreach (var p in Directories)
+				Assert.True(p.AppendPath(subpathstr).ParentPath.ParentPath == p);
+			foreach (var pa in Directories)
+			foreach (var pb in _paths.Where(pb => !pb.IsRoot))
+				Assert.True(pa.AppendPath(pb).IsChildOf(pa));
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<InvalidOperationException>(() => _fileA.AppendPath(subpath));
+			EAssert.Throws<InvalidOperationException>(() => _fileA.AppendPath(subpathstr));
+			EAssert.Throws<ArgumentException>(() => DirectoryA.AppendPath("/rootedpath/"));
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
 
-        /// <summary>
-        ///A test for IsFile
-        ///</summary>
-        [Test]
-        public void IsFileTest()
-        {
-            
-            Assert.IsTrue(fileA.IsFile);
-            Assert.IsFalse(directoryA.IsFile);
-            Assert.IsFalse(root.IsFile);
-        }
-
-        /// <summary>
-        ///A test for IsDirectory
-        ///</summary>
-        [Test]
-        public void IsDirectoryTest()
-        {
-            Assert.IsTrue(directoryA.IsDirectory);
-            Assert.IsTrue(root.IsDirectory);
-            Assert.IsFalse(fileA.IsDirectory);
-        }
-
-        /// <summary>
-        ///A test for EntityName
-        ///</summary>
-        [Test]
-        public void EntityNameTest()
-        {
-            Assert.AreEqual(fileA.EntityName, "filea");
-            Assert.AreEqual(fileB.EntityName, "fileb.txt");
-            Assert.AreEqual(root.EntityName, null);
-        }
-
-        /// <summary>
-        ///A test for ToString
-        ///</summary>
-        [Test]
-        public void ToStringTest()
-        {
-            string s = "/directorya/";
-            Assert.AreEqual(s, FileSystemPath.Parse(s).ToString());
-        }
-
-        /// <summary>
-        ///A test for RemoveParent
-        ///</summary>
-        [Test]
-        public void RemoveParentTest()
-        {
-            Assert.AreEqual(directoryB.RemoveParent(directoryB), root);
-            Assert.AreEqual(fileB.RemoveParent(directoryA), FileSystemPath.Parse("/fileb.txt"));
-            Assert.AreEqual(root.RemoveParent(root), root);
-            Assert.AreEqual(directoryB.RemoveParent(root), directoryB);
-            EAssert.Throws<ArgumentException>(() => fileB.RemoveParent(FileSystemPath.Parse("/nonexistantparent/")));
-            EAssert.Throws<ArgumentException>(() => fileB.RemoveParent(FileSystemPath.Parse("/nonexistantparent")));
-            EAssert.Throws<ArgumentException>(() => fileB.RemoveParent(FileSystemPath.Parse("/fileb.txt")));
-            EAssert.Throws<ArgumentException>(() => fileB.RemoveParent(FileSystemPath.Parse("/directorya")));
-        }
-
-        /// <summary>
-        ///A test for RemoveChild
-        ///</summary>
-        [Test]
-        public void RemoveChildTest()
-        {
-            Assert.AreEqual(fileB.RemoveChild(FileSystemPath.Parse("/fileb.txt")), directoryA);
-            Assert.AreEqual(directoryB.RemoveChild(FileSystemPath.Parse("/directoryb/")), directoryA);
-            Assert.AreEqual(directoryB.RemoveChild(directoryB), root);
-            Assert.AreEqual(fileB.RemoveChild(fileB), root);
-            EAssert.Throws<ArgumentException>(() => directoryA.RemoveChild(FileSystemPath.Parse("/nonexistantchild")));
-            EAssert.Throws<ArgumentException>(() => directoryA.RemoveChild(FileSystemPath.Parse("/directorya")));
-        }
-
-        /// <summary>
-        ///A test for Parse
-        ///</summary>
-        [Test]
-        public void ParseTest()
-        {
-            Assert.IsTrue(_paths.All(p => p == FileSystemPath.Parse(p.ToString())));
-            EAssert.Throws<ArgumentNullException>(() => FileSystemPath.Parse(null));
-            EAssert.Throws<ParseException>(() => FileSystemPath.Parse("thisisnotapath"));
-            EAssert.Throws<ParseException>(() => FileSystemPath.Parse("/thisisainvalid//path"));
-        }
-        
-        /// <summary>
-        ///A test for IsRooted
-        ///</summary>
-        [Test]
-        public void IsRootedTest()
-        {
-            Assert.IsTrue(FileSystemPath.IsRooted("/filea"));
-            Assert.IsTrue(FileSystemPath.IsRooted("/directorya/"));
-            Assert.IsFalse(FileSystemPath.IsRooted("filea"));
-            Assert.IsFalse(FileSystemPath.IsRooted("directorya/"));
-            Assert.IsTrue(_paths.All(p => FileSystemPath.IsRooted(p.ToString())));
-        }
-
-        /// <summary>
-        ///A test for IsParentOf
-        ///</summary>
-        [Test]
-        public void IsParentOfTest()
-        {
-            Assert.IsTrue(directoryA.IsParentOf(fileB));
-            Assert.IsTrue(directoryA.IsParentOf(directoryB));
-            Assert.IsTrue(root.IsParentOf(fileA));
-            Assert.IsTrue(root.IsParentOf(directoryA));
-            Assert.IsTrue(root.IsParentOf(fileB));
-            Assert.IsTrue(root.IsParentOf(directoryB));
-
-            Assert.IsFalse(fileB.IsParentOf(directoryA));
-            Assert.IsFalse(directoryB.IsParentOf(directoryA));
-            Assert.IsFalse(fileA.IsParentOf(root));
-            Assert.IsFalse(directoryA.IsParentOf(root));
-            Assert.IsFalse(fileB.IsParentOf(root));
-            Assert.IsFalse(directoryB.IsParentOf(root));
-        }
-
-        /// <summary>
-        ///A test for IsChildOf
-        ///</summary>
-        [Test]
-        public void IsChildOfTest()
-        {
-            Assert.IsTrue(fileB.IsChildOf(directoryA));
-            Assert.IsTrue(directoryB.IsChildOf(directoryA));
-            Assert.IsTrue(fileA.IsChildOf(root));
-            Assert.IsTrue(directoryA.IsChildOf(root));
-            Assert.IsTrue(fileB.IsChildOf(root));
-            Assert.IsTrue(directoryB.IsChildOf(root));
-
-            Assert.IsFalse(directoryA.IsChildOf(fileB));
-            Assert.IsFalse(directoryA.IsChildOf(directoryB));
-            Assert.IsFalse(root.IsChildOf(fileA));
-            Assert.IsFalse(root.IsChildOf(directoryA));
-            Assert.IsFalse(root.IsChildOf(fileB));
-            Assert.IsFalse(root.IsChildOf(directoryB));
-        }
-
-        /// <summary>
-        ///A test for GetExtension
-        ///</summary>
-        [Test]
-        public void GetExtensionTest()
-        {
-            Assert.AreEqual(fileA.GetExtension(), "");
-            Assert.AreEqual(fileB.GetExtension(), ".txt");
-            fileC = FileSystemPath.Parse("/directory.txt/filec");
-            Assert.AreEqual(fileC.GetExtension(), "");
-            EAssert.Throws<ArgumentException>(() => directoryA.GetExtension());
-        }
-
-        /// <summary>
-        ///A test for GetDirectorySegments
-        ///</summary>
-        [Test]
-        public void GetDirectorySegmentsTest()
-        {
-            Assert.AreEqual(0, root.GetDirectorySegments().Length);
-            Directories
-                .Where(d => !d.IsRoot)
-                .All(d => d.GetDirectorySegments().Length == d.ParentPath.GetDirectorySegments().Length - 1);
-            Files.All(f => f.GetDirectorySegments().Length == f.ParentPath.GetDirectorySegments().Length); 
-        }
+		/// <summary>
+		///     A test for ChangeExtension
+		/// </summary>
+		[Fact]
+		public void ChangeExtensionTest()
+		{
+			foreach (var p in _paths.Where(p => p.IsFile))
+				Assert.True(p.ChangeExtension(".exe").GetExtension() == ".exe");
+			// ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<ArgumentException>(() => DirectoryA.ChangeExtension(".exe"));
+		}
 
 
-        /// <summary>
-        ///A test for CompareTo
-        ///</summary>
-        [Test]
-        public void CompareToTest()
-        {
-            foreach(var pa in _paths)
-                foreach(var pb in _paths)
-                Assert.AreEqual(Math.Sign(pa.CompareTo(pb)), Math.Sign(String.Compare(pa.ToString(), pb.ToString(), StringComparison.Ordinal)));
-        }
+		/// <summary>
+		///     A test for CompareTo
+		/// </summary>
+		[Fact]
+		public void CompareToTest()
+		{
+			foreach (var pa in _paths)
+			foreach (var pb in _paths)
+				Assert.Equal(Math.Sign(pa.CompareTo(pb)), Math.Sign(string.Compare(pa.ToString(), pb.ToString(), StringComparison.Ordinal)));
+		}
 
-        /// <summary>
-        ///A test for ChangeExtension
-        ///</summary>
-        [Test]
-        public void ChangeExtensionTest()
-        {
-            foreach(var p in _paths.Where(p => p.IsFile))
-                Assert.IsTrue( p.ChangeExtension(".exe").GetExtension() == ".exe");
-            EAssert.Throws<ArgumentException>(() => directoryA.ChangeExtension(".exe"));
-        }
+		/// <summary>
+		///     A test for EntityName
+		/// </summary>
+		[Fact]
+		public void EntityNameTest()
+		{
+			Assert.Equal("filea", _fileA.EntityName);
+			Assert.Equal("fileb.txt", _fileB.EntityName);
+			Assert.Null(_root.EntityName);
+		}
 
-        /// <summary>
-        ///A test for AppendPath
-        ///</summary>
-        [Test]
-        public void AppendPathTest()
-        {
-            Assert.IsTrue(Directories.All(p => p.AppendPath(root) == p));
-            Assert.IsTrue(Directories.All(p => p.AppendPath("") == p));
+		/// <summary>
+		///     A test for GetDirectorySegments
+		/// </summary>
+		[Fact]
+		public void GetDirectorySegmentsTest()
+		{
+			Assert.Empty(_root.GetDirectorySegments());
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			Directories
+				.Where(d => !d.IsRoot)
+				.All(d => d.GetDirectorySegments().Length == d.ParentPath.GetDirectorySegments().Length - 1);
+			Files.All(f => f.GetDirectorySegments().Length == f.ParentPath.GetDirectorySegments().Length);
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
 
-            var subpath = FileSystemPath.Parse("/dir/file");
-            var subpathstr = "dir/file";
-            foreach(var p in Directories)
-                Assert.IsTrue(p.AppendPath(subpath).ParentPath.ParentPath == p);
-            foreach(var p in Directories)
-                Assert.IsTrue(p.AppendPath(subpathstr).ParentPath.ParentPath == p);
-            foreach(var pa in Directories)
-            foreach (var pb in _paths.Where(pb => !pb.IsRoot))
-                Assert.IsTrue(pa.AppendPath(pb).IsChildOf(pa));
-            EAssert.Throws<InvalidOperationException>(() => fileA.AppendPath(subpath));
-            EAssert.Throws<InvalidOperationException>(() => fileA.AppendPath(subpathstr));
-            EAssert.Throws<ArgumentException>(() => directoryA.AppendPath("/rootedpath/"));
-        }
+		/// <summary>
+		///     A test for GetExtension
+		/// </summary>
+		[Fact]
+		public void GetExtensionTest()
+		{
+			Assert.Equal("", _fileA.GetExtension());
+			Assert.Equal(".txt", _fileB.GetExtension());
+			_fileC = FileSystemPath.Parse("/directory.txt/filec");
+			Assert.Equal("", _fileC.GetExtension());
+			// ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<ArgumentException>(() => DirectoryA.GetExtension());
+		}
 
-        /// <summary>
-        ///A test for AppendFile
-        ///</summary>
-        [Test]
-        public void AppendFileTest()
-        {
-            foreach(var d in Directories)
-                Assert.IsTrue(d.AppendFile("file").IsFile);
-            foreach (var d in Directories)
-                Assert.IsTrue(d.AppendFile("file").EntityName == "file");
-            foreach(var d in Directories)
-                Assert.IsTrue(d.AppendFile("file").ParentPath == d);
-            EAssert.Throws<InvalidOperationException>(() => fileA.AppendFile("file"));
-            EAssert.Throws<ArgumentException>(() => directoryA.AppendFile("dir/file"));
-        }
+		/// <summary>
+		///     A test for IsChildOf
+		/// </summary>
+		[Fact]
+		public void IsChildOfTest()
+		{
+			Assert.True(_fileB.IsChildOf(DirectoryA));
+			Assert.True(_directoryB.IsChildOf(DirectoryA));
+			Assert.True(_fileA.IsChildOf(_root));
+			Assert.True(DirectoryA.IsChildOf(_root));
+			Assert.True(_fileB.IsChildOf(_root));
+			Assert.True(_directoryB.IsChildOf(_root));
 
-        /// <summary>
-        ///A test for AppendDirectory
-        ///</summary>
-        [Test]
-        public void AppendDirectoryTest()
-        {
-            foreach(var d in Directories)
-                Assert.IsTrue(d.AppendDirectory("dir").IsDirectory);
-            foreach(var d in Directories)
-                Assert.IsTrue(d.AppendDirectory("dir").EntityName == "dir");
-            foreach (var d in Directories)
-                Assert.IsTrue(d.AppendDirectory("dir").ParentPath == d);
-            EAssert.Throws<InvalidOperationException>(() => fileA.AppendDirectory("dir"));
-            EAssert.Throws<ArgumentException>(() => root.AppendDirectory("dir/dir"));
-        }
-    }
+			Assert.False(DirectoryA.IsChildOf(_fileB));
+			Assert.False(DirectoryA.IsChildOf(_directoryB));
+			Assert.False(_root.IsChildOf(_fileA));
+			Assert.False(_root.IsChildOf(DirectoryA));
+			Assert.False(_root.IsChildOf(_fileB));
+			Assert.False(_root.IsChildOf(_directoryB));
+		}
+
+		/// <summary>
+		///     A test for IsDirectory
+		/// </summary>
+		[Fact]
+		public void IsDirectoryTest()
+		{
+			Assert.True(DirectoryA.IsDirectory);
+			Assert.True(_root.IsDirectory);
+			Assert.False(_fileA.IsDirectory);
+		}
+
+		/// <summary>
+		///     A test for IsFile
+		/// </summary>
+		[Fact]
+		public void IsFileTest()
+		{
+			Assert.True(_fileA.IsFile);
+			Assert.False(DirectoryA.IsFile);
+			Assert.False(_root.IsFile);
+		}
+
+		/// <summary>
+		///     A test for IsParentOf
+		/// </summary>
+		[Fact]
+		public void IsParentOfTest()
+		{
+			Assert.True(DirectoryA.IsParentOf(_fileB));
+			Assert.True(DirectoryA.IsParentOf(_directoryB));
+			Assert.True(_root.IsParentOf(_fileA));
+			Assert.True(_root.IsParentOf(DirectoryA));
+			Assert.True(_root.IsParentOf(_fileB));
+			Assert.True(_root.IsParentOf(_directoryB));
+
+			Assert.False(_fileB.IsParentOf(DirectoryA));
+			Assert.False(_directoryB.IsParentOf(DirectoryA));
+			Assert.False(_fileA.IsParentOf(_root));
+			Assert.False(DirectoryA.IsParentOf(_root));
+			Assert.False(_fileB.IsParentOf(_root));
+			Assert.False(_directoryB.IsParentOf(_root));
+		}
+
+		/// <summary>
+		///     A test for IsRooted
+		/// </summary>
+		[Fact]
+		public void IsRootedTest()
+		{
+			Assert.True(FileSystemPath.IsRooted("/filea"));
+			Assert.True(FileSystemPath.IsRooted("/directorya/"));
+			Assert.False(FileSystemPath.IsRooted("filea"));
+			Assert.False(FileSystemPath.IsRooted("directorya/"));
+			Assert.True(_paths.All(p => FileSystemPath.IsRooted(p.ToString())));
+		}
+
+		/// <summary>
+		///     A test for IsRoot
+		/// </summary>
+		[Fact]
+		public void IsRootTest()
+		{
+			Assert.True(_root.IsRoot);
+			Assert.False(DirectoryA.IsRoot);
+			Assert.False(_fileA.IsRoot);
+		}
+
+		/// <summary>
+		///     A test for ParentPath
+		/// </summary>
+		[Fact]
+		public void ParentPathTest()
+		{
+			Assert.True(
+				Directories
+					.Where(d => d.GetDirectorySegments().Length == 1)
+					.All(d => d.ParentPath == _root)
+			);
+
+			Assert.False(Files != null && Files.Any(f => f.RemoveChild(_root.AppendFile(f.EntityName)) != f.ParentPath));
+			EAssert.Throws<InvalidOperationException>(() => Assert.Equal(_root.ParentPath, _root.ParentPath));
+		}
+
+		/// <summary>
+		///     A test for Parse
+		/// </summary>
+		[Fact]
+		public void ParseTest()
+		{
+			Assert.True(_paths.All(p => p == FileSystemPath.Parse(p.ToString())));
+			EAssert.Throws<ArgumentNullException>(() => FileSystemPath.Parse(null));
+			EAssert.Throws<ParseException>(() => FileSystemPath.Parse("thisisnotapath"));
+			EAssert.Throws<ParseException>(() => FileSystemPath.Parse("/thisisainvalid//path"));
+		}
+
+		/// <summary>
+		///     A test for RemoveChild
+		/// </summary>
+		[Fact]
+		public void RemoveChildTest()
+		{
+			Assert.Equal(DirectoryA, _fileB.RemoveChild(FileSystemPath.Parse("/fileb.txt")));
+			Assert.Equal(DirectoryA, _directoryB.RemoveChild(FileSystemPath.Parse("/directoryb/")));
+			Assert.Equal(_root, _directoryB.RemoveChild(_directoryB));
+			Assert.Equal(_root, _fileB.RemoveChild(_fileB));
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<ArgumentException>(() => DirectoryA.RemoveChild(FileSystemPath.Parse("/nonexistantchild")));
+			EAssert.Throws<ArgumentException>(() => DirectoryA.RemoveChild(FileSystemPath.Parse("/directorya")));
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
+
+		/// <summary>
+		///     A test for RemoveParent
+		/// </summary>
+		[Fact]
+		public void RemoveParentTest()
+		{
+			Assert.Equal(_root, _directoryB.RemoveParent(_directoryB));
+			Assert.Equal(FileSystemPath.Parse("/fileb.txt"), _fileB.RemoveParent(DirectoryA));
+			Assert.Equal(_root, _root.RemoveParent(_root));
+			Assert.Equal(_directoryB, _directoryB.RemoveParent(_root));
+			// ReSharper disable ReturnValueOfPureMethodIsNotUsed
+			EAssert.Throws<ArgumentException>(() => _fileB.RemoveParent(FileSystemPath.Parse("/nonexistantparent/")));
+			EAssert.Throws<ArgumentException>(() => _fileB.RemoveParent(FileSystemPath.Parse("/nonexistantparent")));
+			EAssert.Throws<ArgumentException>(() => _fileB.RemoveParent(FileSystemPath.Parse("/fileb.txt")));
+			EAssert.Throws<ArgumentException>(() => _fileB.RemoveParent(FileSystemPath.Parse("/directorya")));
+			// ReSharper restore ReturnValueOfPureMethodIsNotUsed
+		}
+
+		/// <summary>
+		///     A test for Root
+		/// </summary>
+		[Fact]
+		public void RootTest() { Assert.Equal(_root, FileSystemPath.Parse("/")); }
+
+		/// <summary>
+		///     A test for ToString
+		/// </summary>
+		[Fact]
+		public void ToStringTest()
+		{
+			var s = "/directorya/";
+			Assert.Equal(s, FileSystemPath.Parse(s).ToString());
+		}
+	}
 }

@@ -6,292 +6,246 @@ using System.Threading;
 
 namespace SharpFileSystem.IO
 {
-    // CircularBuffer from http://circularbuffer.codeplex.com/.
-    public class CircularBuffer<T> : ICollection<T>, IEnumerable<T>, ICollection, IEnumerable
-    {
-        private int capacity;
-        private int size;
-        private int head;
-        private int tail;
-        private T[] buffer;
+	// CircularBuffer from http://circularbuffer.codeplex.com/.
+	public class CircularBuffer<T> : ICollection<T>, ICollection
+	{
+		T[] _buffer;
+		int _capacity;
+		int _head;
 
-        [NonSerialized]
-        private object syncRoot;
+		[NonSerialized] object _syncRoot;
+		int _tail;
 
-        public CircularBuffer(int capacity)
-            : this(capacity, false)
-        {
-        }
+		public CircularBuffer(int capacity, bool allowOverflow = false)
+		{
+			if (capacity < 0)
+				throw new ArgumentException("capacity must be greater than or equal to zero.",
+					"capacity");
 
-        public CircularBuffer(int capacity, bool allowOverflow)
-        {
-            if (capacity < 0)
-                throw new ArgumentException("capacity must be greater than or equal to zero.",
-                    "capacity");
+			_capacity = capacity;
+			Size = 0;
+			_head = 0;
+			_tail = 0;
+			_buffer = new T[capacity];
+			AllowOverflow = allowOverflow;
+		}
 
-            this.capacity = capacity;
-            size = 0;
-            head = 0;
-            tail = 0;
-            buffer = new T[capacity];
-            AllowOverflow = allowOverflow;
-        }
+		bool AllowOverflow { get; }
 
-        public bool AllowOverflow
-        {
-            get;
-            set;
-        }
+		public int Capacity
+		{
+			get => _capacity;
+			// ReSharper disable once UnusedMember.Global
+			set
+			{
+				if (value == _capacity)
+					return;
 
-        public int Capacity
-        {
-            get { return capacity; }
-            set
-            {
-                if (value == capacity)
-                    return;
+				if (value < Size)
+					throw new ArgumentOutOfRangeException("value",
+						"value must be greater than or equal to the buffer size.");
 
-                if (value < size)
-                    throw new ArgumentOutOfRangeException("value",
-                        "value must be greater than or equal to the buffer size.");
+				var dst = new T[value];
+				if (Size > 0)
+					CopyTo(dst);
+				_buffer = dst;
 
-                var dst = new T[value];
-                if (size > 0)
-                    CopyTo(dst);
-                buffer = dst;
+				_capacity = value;
+			}
+		}
 
-                capacity = value;
-            }
-        }
+		public int Size { get; private set; }
 
-        public int Size
-        {
-            get { return size; }
-        }
+		public bool Contains(T item)
+		{
+			var bufferIndex = _head;
+			var comparer = EqualityComparer<T>.Default;
+			for (var i = 0; i < Size; i++, bufferIndex++)
+			{
+				if (bufferIndex == _capacity)
+					bufferIndex = 0;
 
-        public bool Contains(T item)
-        {
-            int bufferIndex = head;
-            var comparer = EqualityComparer<T>.Default;
-            for (int i = 0; i < size; i++, bufferIndex++)
-            {
-                if (bufferIndex == capacity)
-                    bufferIndex = 0;
+				if (item == null && _buffer[bufferIndex] == null)
+					return true;
+				if (_buffer[bufferIndex] != null &&
+				    comparer.Equals(_buffer[bufferIndex], item))
+					return true;
+			}
 
-                if (item == null && buffer[bufferIndex] == null)
-                    return true;
-                else if ((buffer[bufferIndex] != null) &&
-                    comparer.Equals(buffer[bufferIndex], item))
-                    return true;
-            }
+			return false;
+		}
 
-            return false;
-        }
+		public void Clear()
+		{
+			Size = 0;
+			_head = 0;
+			_tail = 0;
+		}
 
-        public void Clear()
-        {
-            size = 0;
-            head = 0;
-            tail = 0;
-        }
+		public void CopyTo(T[] array, int arrayIndex = 0) { CopyTo(array, arrayIndex, Size); }
 
-        public int Put(T[] src)
-        {
-            return Put(src, 0, src.Length);
-        }
+		#region IEnumerable<T> Members
 
-        public int Put(T[] src, int offset, int count)
-        {
-            int realCount = AllowOverflow ? count : Math.Min(count, capacity - size);
-            int srcIndex = offset;
-            for (int i = 0; i < realCount; i++, tail++, srcIndex++)
-            {
-                if (tail == capacity)
-                    tail = 0;
-                buffer[tail] = src[srcIndex];
-            }
-            size = Math.Min(size + realCount, capacity);
-            return realCount;
-        }
+		IEnumerator<T> IEnumerable<T>.GetEnumerator() { return GetEnumerator(); }
 
-        public void Put(T item)
-        {
-            if (!AllowOverflow && size == capacity)
-                throw new InternalBufferOverflowException("Buffer is full.");
+		#endregion
 
-            buffer[tail] = item;
-            if (tail++ == capacity)
-                tail = 0;
-            size++;
-        }
+		#region IEnumerable Members
 
-        public void Skip(int count)
-        {
-            head += count;
-            if (head >= capacity)
-                head -= capacity;
-        }
+		IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 
-        public T[] Get(int count)
-        {
-            var dst = new T[count];
-            Get(dst);
-            return dst;
-        }
+		#endregion
 
-        public int Get(T[] dst)
-        {
-            return Get(dst, 0, dst.Length);
-        }
+		// ReSharper disable once UnusedMember.Global
+		public int Put(T[] src) { return Put(src, 0, src.Length); }
 
-        public int Get(T[] dst, int offset, int count)
-        {
-            int realCount = Math.Min(count, size);
-            int dstIndex = offset;
-            for (int i = 0; i < realCount; i++, head++, dstIndex++)
-            {
-                if (head == capacity)
-                    head = 0;
-                dst[dstIndex] = buffer[head];
-            }
-            size -= realCount;
-            return realCount;
-        }
+		public int Put(T[] src, int offset, int count)
+		{
+			var realCount = AllowOverflow ? count : Math.Min(count, _capacity - Size);
+			var srcIndex = offset;
+			for (var i = 0; i < realCount; i++, _tail++, srcIndex++)
+			{
+				if (_tail == _capacity)
+					_tail = 0;
+				_buffer[_tail] = src[srcIndex];
+			}
 
-        public T Get()
-        {
-            if (size == 0)
-                throw new InvalidOperationException("Buffer is empty.");
+			Size = Math.Min(Size + realCount, _capacity);
+			return realCount;
+		}
 
-            var item = buffer[head];
-            if (head++ == capacity)
-                head = 0;
-            size--;
-            return item;
-        }
+		void Put(T item)
+		{
+			if (!AllowOverflow && Size == _capacity)
+				throw new InternalBufferOverflowException("Buffer is full.");
 
-        public void CopyTo(T[] array)
-        {
-            CopyTo(array, 0);
-        }
+			_buffer[_tail] = item;
+			if (_tail++ == _capacity)
+				_tail = 0;
+			Size++;
+		}
 
-        public void CopyTo(T[] array, int arrayIndex)
-        {
-            CopyTo(0, array, arrayIndex, size);
-        }
+		// ReSharper disable once UnusedMember.Global
+		public void Skip(int count)
+		{
+			_head += count;
+			if (_head >= _capacity)
+				_head -= _capacity;
+		}
 
-        public void CopyTo(int index, T[] array, int arrayIndex, int count)
-        {
-            if (count > size)
-                throw new ArgumentOutOfRangeException("count",
-                    "count cannot be greater than the buffer size.");
+		// ReSharper disable once UnusedMember.Global
+		public T[] Get(int count)
+		{
+			var dst = new T[count];
+			Get(dst);
+			return dst;
+		}
 
-            int bufferIndex = head;
-            for (int i = 0; i < count; i++, bufferIndex++, arrayIndex++)
-            {
-                if (bufferIndex == capacity)
-                    bufferIndex = 0;
-                array[arrayIndex] = buffer[bufferIndex];
-            }
-        }
+		// ReSharper disable once UnusedMethodReturnValue.Local
+		int Get(T[] dst) { return Get(dst, 0, dst.Length); }
 
-        public IEnumerator<T> GetEnumerator()
-        {
-            int bufferIndex = head;
-            for (int i = 0; i < size; i++, bufferIndex++)
-            {
-                if (bufferIndex == capacity)
-                    bufferIndex = 0;
+		public int Get(T[] dst, int offset, int count)
+		{
+			var realCount = Math.Min(count, Size);
+			var dstIndex = offset;
+			for (var i = 0; i < realCount; i++, _head++, dstIndex++)
+			{
+				if (_head == _capacity)
+					_head = 0;
+				dst[dstIndex] = _buffer[_head];
+			}
 
-                yield return buffer[bufferIndex];
-            }
-        }
+			Size -= realCount;
+			return realCount;
+		}
 
-        public T[] GetBuffer()
-        {
-            return buffer;
-        }
+		// ReSharper disable once UnusedMethodReturnValue.Local
+		T Get()
+		{
+			if (Size == 0)
+				throw new InvalidOperationException("Buffer is empty.");
 
-        public T[] ToArray()
-        {
-            var dst = new T[size];
-            CopyTo(dst);
-            return dst;
-        }
+			var item = _buffer[_head];
+			if (_head++ == _capacity)
+				_head = 0;
+			Size--;
+			return item;
+		}
 
-        #region ICollection<T> Members
+		void CopyTo(T[] array, int arrayIndex, int count)
+		{
+			if (count > Size)
+				throw new ArgumentOutOfRangeException("count", "count cannot be greater than the buffer size.");
 
-        int ICollection<T>.Count
-        {
-            get { return Size; }
-        }
+			var bufferIndex = _head;
+			for (var i = 0; i < count; i++, bufferIndex++, arrayIndex++)
+			{
+				if (bufferIndex == _capacity)
+					bufferIndex = 0;
+				array[arrayIndex] = _buffer[bufferIndex];
+			}
+		}
 
-        bool ICollection<T>.IsReadOnly
-        {
-            get { return false; }
-        }
+		IEnumerator<T> GetEnumerator()
+		{
+			var bufferIndex = _head;
+			for (var i = 0; i < Size; i++, bufferIndex++)
+			{
+				if (bufferIndex == _capacity)
+					bufferIndex = 0;
 
-        void ICollection<T>.Add(T item)
-        {
-            Put(item);
-        }
+				yield return _buffer[bufferIndex];
+			}
+		}
 
-        bool ICollection<T>.Remove(T item)
-        {
-            if (size == 0)
-                return false;
+		// ReSharper disable once UnusedMember.Global
+		public T[] GetBuffer() { return _buffer; }
 
-            Get();
-            return true;
-        }
+		// ReSharper disable once UnusedMember.Global
+		public T[] ToArray()
+		{
+			var dst = new T[Size];
+			CopyTo(dst);
+			return dst;
+		}
 
-        #endregion
+		#region ICollection<T> Members
 
-        #region IEnumerable<T> Members
+		int ICollection<T>.Count => Size;
 
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+		bool ICollection<T>.IsReadOnly => false;
 
-        #endregion
+		void ICollection<T>.Add(T item) { Put(item); }
 
-        #region ICollection Members
+		bool ICollection<T>.Remove(T item)
+		{
+			if (Size == 0)
+				return false;
 
-        int ICollection.Count
-        {
-            get { return Size; }
-        }
+			Get();
+			return true;
+		}
 
-        bool ICollection.IsSynchronized
-        {
-            get { return false; }
-        }
+		#endregion
 
-        object ICollection.SyncRoot
-        {
-            get
-            {
-                if (syncRoot == null)
-                    Interlocked.CompareExchange(ref syncRoot, new object(), null);
-                return syncRoot;
-            }
-        }
+		#region ICollection Members
 
-        void ICollection.CopyTo(Array array, int arrayIndex)
-        {
-            CopyTo((T[])array, arrayIndex);
-        }
+		int ICollection.Count => Size;
 
-        #endregion
+		bool ICollection.IsSynchronized => false;
 
-        #region IEnumerable Members
+		object ICollection.SyncRoot
+		{
+			get
+			{
+				if (_syncRoot == null)
+					Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+				return _syncRoot;
+			}
+		}
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return (IEnumerator)GetEnumerator();
-        }
+		void ICollection.CopyTo(Array array, int arrayIndex) { CopyTo((T[]) array, arrayIndex); }
 
-        #endregion
-    }
+		#endregion
+	}
 }

@@ -5,313 +5,256 @@ using System.Linq;
 
 namespace SharpFileSystem.FileSystems
 {
-    public abstract class SeamlessArchiveFileSystem : IFileSystem
-    {
-        public IFileSystem FileSystem { get; private set; }
+	// ReSharper disable once UnusedMember.Global
+	public abstract class SeamlessArchiveFileSystem : IFileSystem
+	{
+		const char ArchiveDirectorySeparator = '#';
 
-        public static readonly char ArchiveDirectorySeparator = '#';
+		readonly FileSystemUsage _rootUsage;
+		readonly IDictionary<File, FileSystemUsage> _usedArchives = new Dictionary<File, FileSystemUsage>();
 
-        private FileSystemUsage _rootUsage;
-        private IDictionary<File, FileSystemUsage> _usedArchives = new Dictionary<File, FileSystemUsage>();
+		protected SeamlessArchiveFileSystem(IFileSystem fileSystem)
+		{
+			FileSystem = fileSystem;
+			_rootUsage = new FileSystemUsage
+			{
+				Owner = this,
+				FileSystem = FileSystem,
+				ArchiveFile = null
+			};
+		}
 
-        public SeamlessArchiveFileSystem(IFileSystem fileSystem)
-        {
-            FileSystem = fileSystem;
-            _rootUsage = new FileSystemUsage()
-                             {
-                                 Owner = this,
-                                 FileSystem = FileSystem,
-                                 ArchiveFile = null
-                             };
-        }
+		IFileSystem FileSystem { get; }
 
-        public void UnuseFileSystem(FileSystemReference reference)
-        {
-            // When root filesystem was used.
-            if (reference.Usage.ArchiveFile == null)
-                return;
+		public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
+		{
+			using (var r = Refer(path))
+			{
+				var fileSystem = r.FileSystem;
 
-            FileSystemUsage usage;
-            if (!_usedArchives.TryGetValue(reference.Usage.ArchiveFile, out usage))
-                throw new ArgumentException("The specified reference is not valid.");
-            if (!usage.References.Remove(reference))
-                throw new ArgumentException("The specified reference does not exist.");
-            if (usage.References.Count == 0)
-            {
-                _usedArchives.Remove(usage.ArchiveFile);
+				FileSystemPath parentPath;
+				parentPath = TryGetArchivePath(path, out parentPath) ? ArchiveFileToDirectory(parentPath) : FileSystemPath.Root;
+				var entities = new LinkedList<FileSystemPath>();
+				foreach (var ep in fileSystem.GetEntities(GetRelativePath(path)))
+				{
+					var newep = parentPath.AppendPath(ep.ToString().Substring(1));
+					entities.AddLast(newep);
+					if (IsArchiveFile(fileSystem, newep))
+						entities.AddLast(newep.ParentPath.AppendDirectory(newep.EntityName + ArchiveDirectorySeparator));
+				}
 
-                usage.FileSystem.Dispose();
-            }
-        }
+				return entities;
+			}
+		}
 
-        protected abstract bool IsArchiveFile(IFileSystem fileSystem, FileSystemPath path);
+		public bool Exists(FileSystemPath path)
+		{
+			using (var r = Refer(path))
+			{
+				var fileSystem = r.FileSystem;
+				return fileSystem.Exists(GetRelativePath(path));
+			}
+		}
 
-        private FileSystemPath ArchiveFileToDirectory(FileSystemPath path)
-        {
-            if (!path.IsFile)
-                throw new ArgumentException("The specified path is not a file.");
-            return path.ParentPath.AppendDirectory(path.EntityName + ArchiveDirectorySeparator);
-        }
+		public Stream OpenFile(FileSystemPath path, FileAccess access)
+		{
+			var r = Refer(path);
+			var s = r.FileSystem.OpenFile(GetRelativePath(path), access);
+			return new SafeReferenceStream(s, r);
+		}
 
-        private FileSystemPath GetRelativePath(FileSystemPath path)
-        {
-            string s = path.ToString();
-            int sindex = s.LastIndexOf(ArchiveDirectorySeparator.ToString() + FileSystemPath.DirectorySeparator);
-            if (sindex < 0)
-                return path;
-            return FileSystemPath.Parse(s.Substring(sindex + 1));
-        }
+		public void Dispose()
+		{
+			foreach (var reference in _usedArchives.Values.SelectMany(usage => usage.References).ToArray())
+				UnuseFileSystem(reference);
+			FileSystem.Dispose();
+		}
 
-        protected bool HasArchive(FileSystemPath path)
-        {
-            return path.ToString().LastIndexOf(ArchiveDirectorySeparator.ToString() + FileSystemPath.DirectorySeparator) >= 0;
-        }
+		void UnuseFileSystem(FileSystemReference reference)
+		{
+			// When root filesystem was used.
+			if (reference.Usage.ArchiveFile == null)
+				return;
 
-        protected bool TryGetArchivePath(FileSystemPath path, out FileSystemPath archivePath)
-        {
-            string p = path.ToString();
-            int sindex = p.LastIndexOf(ArchiveDirectorySeparator.ToString() + FileSystemPath.DirectorySeparator);
-            if (sindex < 0)
-            {
-                archivePath = path;
-                return false;
-            }
-            archivePath = FileSystemPath.Parse(p.Substring(0, sindex));
-            return true;
-        }
+			if (!_usedArchives.TryGetValue(reference.Usage.ArchiveFile, out var usage))
+				throw new ArgumentException("The specified reference is not valid.");
+			if (!usage.References.Remove(reference))
+				throw new ArgumentException("The specified reference does not exist.");
+			if (usage.References.Count == 0)
+			{
+				_usedArchives.Remove(usage.ArchiveFile);
 
-        protected FileSystemReference Refer(FileSystemPath path)
-        {
-            FileSystemPath archivePath;
-            if (TryGetArchivePath(path, out archivePath))
-                return CreateArchiveReference(archivePath);
-            return new FileSystemReference(_rootUsage);
-        }
+				usage.FileSystem.Dispose();
+			}
+		}
 
-        private FileSystemReference CreateArchiveReference(FileSystemPath archiveFile)
-        {
-            return CreateReference((File)GetActualLocation(archiveFile));
-        }
+		protected abstract bool IsArchiveFile(IFileSystem fileSystem, FileSystemPath path);
 
-        private FileSystemReference CreateReference(File file)
-        {
-            var usage = GetArchiveFs(file);
-            var reference = new FileSystemReference(usage);
-            usage.References.Add(reference);
-            return reference;
-        }
+		FileSystemPath ArchiveFileToDirectory(FileSystemPath path)
+		{
+			if (!path.IsFile)
+				throw new ArgumentException("The specified path is not a file.");
+			return path.ParentPath.AppendDirectory(path.EntityName + ArchiveDirectorySeparator);
+		}
 
-        private FileSystemEntity GetActualLocation(FileSystemPath path)
-        {
-            FileSystemPath archivePath;
-            if (!TryGetArchivePath(path, out archivePath))
-                return FileSystemEntity.Create(FileSystem, path);
-            var archiveFile = (File)GetActualLocation(archivePath);
-            FileSystemUsage usage = GetArchiveFs(archiveFile);
-            return FileSystemEntity.Create(usage.FileSystem, GetRelativePath(path));
-        }
+		FileSystemPath GetRelativePath(FileSystemPath path)
+		{
+			var s = path.ToString();
+			var sindex = s.LastIndexOf($"{ArchiveDirectorySeparator}{ArchiveDirectorySeparator}", StringComparison.OrdinalIgnoreCase);
+			if (sindex < 0)
+				return path;
+			return FileSystemPath.Parse(s.Substring(sindex + 1));
+		}
 
-        private FileSystemUsage GetArchiveFs(File archiveFile)
-        {
-            FileSystemUsage usage;
-            if (_usedArchives.TryGetValue(archiveFile, out usage))
-            {
-                //System.Diagnostics.Debug.WriteLine("Open archives: " + _usedArchives.Count);
-                return usage;
-            }
+		// ReSharper disable once UnusedMember.Global
+		protected bool HasArchive(FileSystemPath path) { return path.ToString().LastIndexOf($"{ArchiveDirectorySeparator}{ArchiveDirectorySeparator}", StringComparison.OrdinalIgnoreCase) >= 0; }
 
-            IFileSystem archiveFs = CreateArchiveFileSystem(archiveFile);
-            usage = new FileSystemUsage
-            {
-                Owner = this,
-                FileSystem = archiveFs,
-                ArchiveFile = archiveFile
-            };
-            _usedArchives[archiveFile] = usage;
-            //System.Diagnostics.Debug.WriteLine("Open archives: " + _usedArchives.Count);
-            return usage;
-        }
+		bool TryGetArchivePath(FileSystemPath path, out FileSystemPath archivePath)
+		{
+			var p = path.ToString();
+			var sindex = p.LastIndexOf($"{ArchiveDirectorySeparator}{ArchiveDirectorySeparator}", StringComparison.OrdinalIgnoreCase);
+			if (sindex < 0)
+			{
+				archivePath = path;
+				return false;
+			}
 
-        protected abstract IFileSystem CreateArchiveFileSystem(File archiveFile);
+			archivePath = FileSystemPath.Parse(p.Substring(0, sindex));
+			return true;
+		}
 
-        public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
-        {
-            using (var r = Refer(path))
-            {
-                var fileSystem = r.FileSystem;
+		FileSystemReference Refer(FileSystemPath path)
+		{
+			if (TryGetArchivePath(path, out var archivePath))
+				return CreateArchiveReference(archivePath);
+			return new FileSystemReference(_rootUsage);
+		}
 
-                FileSystemPath parentPath;
-                if (TryGetArchivePath(path, out parentPath))
-                    parentPath = ArchiveFileToDirectory(parentPath);
-                else
-                    parentPath = FileSystemPath.Root;
-                var entities = new LinkedList<FileSystemPath>();
-                foreach (var ep in fileSystem.GetEntities(GetRelativePath(path)))
-                {
-                    var newep = parentPath.AppendPath(ep.ToString().Substring(1));
-                    entities.AddLast(newep);
-                    if (IsArchiveFile(fileSystem, newep))
-                        entities.AddLast(newep.ParentPath.AppendDirectory(newep.EntityName + ArchiveDirectorySeparator));
-                }
-                return entities;
-            }
-        }
+		FileSystemReference CreateArchiveReference(FileSystemPath archiveFile) { return CreateReference((File) GetActualLocation(archiveFile)); }
 
-        public bool Exists(FileSystemPath path)
-        {
-            using (var r = Refer(path))
-            {
-                var fileSystem = r.FileSystem;
-                return fileSystem.Exists(GetRelativePath(path));
-            }
-        }
+		FileSystemReference CreateReference(File file)
+		{
+			var usage = GetArchiveFs(file);
+			var reference = new FileSystemReference(usage);
+			usage.References.Add(reference);
+			return reference;
+		}
 
-        public Stream OpenFile(FileSystemPath path, FileAccess access)
-        {
-            var r = Refer(path);
-            var s = r.FileSystem.OpenFile(GetRelativePath(path), access);
-            return new SafeReferenceStream(s, r);
-        }
+		FileSystemEntity GetActualLocation(FileSystemPath path)
+		{
+			if (!TryGetArchivePath(path, out var archivePath))
+				return FileSystemEntity.Create(FileSystem, path);
+			var archiveFile = (File) GetActualLocation(archivePath);
+			var usage = GetArchiveFs(archiveFile);
+			return FileSystemEntity.Create(usage.FileSystem, GetRelativePath(path));
+		}
 
-        #region Not implemented
-        public System.IO.Stream CreateFile(FileSystemPath path)
-        {
-            var r = Refer(path);
-            var s = r.FileSystem.CreateFile(GetRelativePath(path));
-            return new SafeReferenceStream(s, r);
-        }
+		FileSystemUsage GetArchiveFs(File archiveFile)
+		{
+			if (_usedArchives.TryGetValue(archiveFile, out var usage)) return usage;
 
-        public void CreateDirectory(FileSystemPath path)
-        {
-            using (var r = Refer(path))
-            {
-                r.FileSystem.CreateDirectory(GetRelativePath(path));
-            }
-        }
+			var archiveFs = CreateArchiveFileSystem(archiveFile);
+			usage = new FileSystemUsage
+			{
+				Owner = this,
+				FileSystem = archiveFs,
+				ArchiveFile = archiveFile
+			};
+			_usedArchives[archiveFile] = usage;
+			//System.Diagnostics.Debug.WriteLine("Open archives: " + _usedArchives.Count);
+			return usage;
+		}
 
-        public void Delete(FileSystemPath path)
-        {
-            using (var r = Refer(path))
-            {
-                r.FileSystem.Delete(GetRelativePath(path));
-            }
-        }
-        #endregion
+		protected abstract IFileSystem CreateArchiveFileSystem(File archiveFile);
 
-        public void Dispose()
-        {
-            foreach (var reference in _usedArchives.Values.SelectMany(usage => usage.References).ToArray())
-                UnuseFileSystem(reference);
-            FileSystem.Dispose();
-        }
+		// ReSharper disable once UnusedMember.Global
+		public class DummyDisposable : IDisposable
+		{
+			public void Dispose() { }
+		}
 
-        public class DummyDisposable : IDisposable
-        {
-            public void Dispose()
-            {
-            }
-        }
+		public class FileSystemReference : IDisposable
+		{
+			public FileSystemReference(FileSystemUsage usage) { Usage = usage; }
 
-        public class FileSystemReference : IDisposable
-        {
-            public FileSystemUsage Usage { get; set; }
-            public IFileSystem FileSystem
-            {
-                get { return Usage.FileSystem; }
-            }
-            public FileSystemReference(FileSystemUsage usage)
-            {
-                Usage = usage;
-            }
+			public FileSystemUsage Usage { get; }
+			public IFileSystem FileSystem => Usage.FileSystem;
+			public void Dispose() { Usage.Owner.UnuseFileSystem(this); }
+		}
 
-            public void Dispose()
-            {
-                Usage.Owner.UnuseFileSystem(this);
-            }
-        }
+		public class FileSystemUsage
+		{
+			public FileSystemUsage() { References = new LinkedList<FileSystemReference>(); }
 
-        public class FileSystemUsage
-        {
-            public SeamlessArchiveFileSystem Owner { get; set; }
-            public File ArchiveFile { get; set; }
-            public IFileSystem FileSystem { get; set; }
-            public ICollection<FileSystemReference> References { get; set; }
+			public SeamlessArchiveFileSystem Owner { get; set; }
+			public File ArchiveFile { get; set; }
+			public IFileSystem FileSystem { get; set; }
+			public ICollection<FileSystemReference> References { get; }
+		}
 
-            public FileSystemUsage()
-            {
-                References = new LinkedList<FileSystemReference>();
-            }
-        }
+		class SafeReferenceStream : Stream
+		{
+			readonly FileSystemReference _reference;
+			readonly Stream _stream;
 
-        public class SafeReferenceStream : Stream
-        {
-            private Stream _stream;
-            private FileSystemReference _reference;
+			public SafeReferenceStream(Stream stream, FileSystemReference reference)
+			{
+				_stream = stream;
+				_reference = reference;
+			}
 
-            public SafeReferenceStream(Stream stream, FileSystemReference reference)
-            {
-                _stream = stream;
-                _reference = reference;
-            }
+			public override bool CanRead => _stream.CanRead;
 
-            public override void Flush()
-            {
-                _stream.Flush();
-            }
+			public override bool CanSeek => _stream.CanSeek;
 
-            public override long Seek(long offset, SeekOrigin origin)
-            {
-                return _stream.Seek(offset, origin);
-            }
+			public override bool CanWrite => _stream.CanWrite;
 
-            public override void SetLength(long value)
-            {
-                _stream.SetLength(value);
-            }
+			public override long Length => _stream.Length;
 
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                return _stream.Read(buffer, offset, count);
-            }
+			public override long Position { get => _stream.Position; set => _stream.Position = value; }
 
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-                _stream.Write(buffer, offset, count);
-            }
+			public override void Flush() { _stream.Flush(); }
 
-            public override bool CanRead
-            {
-                get { return _stream.CanRead; }
-            }
+			public override long Seek(long offset, SeekOrigin origin) { return _stream.Seek(offset, origin); }
 
-            public override bool CanSeek
-            {
-                get { return _stream.CanSeek; }
-            }
+			public override void SetLength(long value) { _stream.SetLength(value); }
 
-            public override bool CanWrite
-            {
-                get { return _stream.CanWrite; }
-            }
+			public override int Read(byte[] buffer, int offset, int count) { return _stream.Read(buffer, offset, count); }
 
-            public override long Length
-            {
-                get { return _stream.Length; }
-            }
+			public override void Write(byte[] buffer, int offset, int count) { _stream.Write(buffer, offset, count); }
 
-            public override long Position
-            {
-                get { return _stream.Position; }
-                set { _stream.Position = value; }
-            }
+			public override void Close()
+			{
+				_stream.Close();
+				_reference.Dispose();
+			}
+		}
 
-            public override void Close()
-            {
-                _stream.Close();
-                _reference.Dispose();
-            }
-        }
-    }
+		#region Not implemented
+
+		public Stream CreateFile(FileSystemPath path)
+		{
+			var r = Refer(path);
+			var s = r.FileSystem.CreateFile(GetRelativePath(path));
+			return new SafeReferenceStream(s, r);
+		}
+
+		public void CreateDirectory(FileSystemPath path)
+		{
+			using (var r = Refer(path))
+			{
+				r.FileSystem.CreateDirectory(GetRelativePath(path));
+			}
+		}
+
+		public void Delete(FileSystemPath path)
+		{
+			using (var r = Refer(path))
+			{
+				r.FileSystem.Delete(GetRelativePath(path));
+			}
+		}
+
+		#endregion
+	}
 }
-
-
