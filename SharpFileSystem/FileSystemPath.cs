@@ -74,6 +74,7 @@ namespace SharpFileSystem
 			return new FileSystemPath(s);
 		}
 
+        [Pure]
 		public FileSystemPath AppendPath(string relativePath)
 		{
 			if (IsRooted(relativePath))

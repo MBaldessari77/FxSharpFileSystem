@@ -8,7 +8,7 @@ namespace SharpFileSystem.Collections
 	{
 		#region Private Fields
 
-		readonly IDictionary<Type, ICollection<T>> types = new Dictionary<Type, ICollection<T>>();
+		readonly IDictionary<Type, ICollection<T>> _types = new Dictionary<Type, ICollection<T>>();
 
 		#endregion
 
@@ -33,14 +33,14 @@ namespace SharpFileSystem.Collections
 		ICollection<T> AddType(Type type)
 		{
 			ICollection<T> result = new LinkedList<T>();
-			types.Add(type, result);
+			_types.Add(type, result);
 			return result;
 		}
 
 		ICollection<T> EnsureType(Type type)
 		{
 			ICollection<T> result;
-			if (types.TryGetValue(type, out result))
+			if (_types.TryGetValue(type, out result))
 				return result;
 			return AddType(type);
 		}
@@ -81,11 +81,11 @@ namespace SharpFileSystem.Collections
 			foreach (var type in GetSubTypes(itemType))
 			{
 				ICollection<T> itemsOfType;
-				if (types.TryGetValue(type, out itemsOfType))
+				if (_types.TryGetValue(type, out itemsOfType))
 				{
 					if (!itemsOfType.Remove(item)) return false;
 					if (itemsOfType.Count == 0)
-						types.Remove(type);
+						_types.Remove(type);
 				}
 				else
 				{
@@ -96,7 +96,7 @@ namespace SharpFileSystem.Collections
 			return true;
 		}
 
-		public void Clear() { types.Clear(); }
+		public void Clear() { _types.Clear(); }
 
 		#endregion
 
@@ -109,7 +109,7 @@ namespace SharpFileSystem.Collections
 		public IEnumerable<T> Get(Type type)
 		{
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out itemsOfType))
 				foreach (var item in itemsOfType)
 					yield return item;
 		}
@@ -117,7 +117,7 @@ namespace SharpFileSystem.Collections
 		public IEnumerable<TGet> Get<TGet>()
 		{
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(typeof(TGet), out itemsOfType))
+			if (_types.TryGetValue(typeof(TGet), out itemsOfType))
 				foreach (object item in itemsOfType)
 					yield return (TGet) item;
 		}
@@ -132,7 +132,7 @@ namespace SharpFileSystem.Collections
 				throw new ArgumentException("The specified type is not a instantiatable type and cannot be explicitly returned.", "type");
 			ValidateType(type);
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out itemsOfType))
 				foreach (var item in itemsOfType)
 					if (item.GetType() == type)
 						yield return item;
@@ -152,7 +152,7 @@ namespace SharpFileSystem.Collections
 		public T GetSingle(Type type)
 		{
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out itemsOfType))
 				foreach (var item in itemsOfType)
 					return item;
 			return default(T);
@@ -170,7 +170,7 @@ namespace SharpFileSystem.Collections
 				throw new ArgumentException("The specified type is not a instantiatable type and cannot be explicitly returned.", "type");
 			ValidateType(type);
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out itemsOfType))
 				foreach (var item in itemsOfType)
 					if (item.GetType() == type)
 						return item;
@@ -191,7 +191,7 @@ namespace SharpFileSystem.Collections
 		{
 			if (type == null)
 				return false;
-			return types.ContainsKey(type);
+			return _types.ContainsKey(type);
 		}
 
 		public bool Contains<TContains>() { return Contains(typeof(TContains)); }
@@ -202,7 +202,7 @@ namespace SharpFileSystem.Collections
 				return false;
 			var itemType = item.GetType();
 			ICollection<T> itemsOfType;
-			if (types.TryGetValue(itemType, out itemsOfType))
+			if (_types.TryGetValue(itemType, out itemsOfType))
 				return itemsOfType.Contains(item);
 			return false;
 		}
