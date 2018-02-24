@@ -57,12 +57,6 @@
     <Compile Include="SevenZipFileSystem.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SharpFileSystem\SharpFileSystem.csproj">
-      <Project>{3C4D07BA-23B5-4A63-92CF-F3BF892B7329}</Project>
-      <Name>SharpFileSystem</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

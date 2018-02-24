@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -47,24 +47,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SharpFileSystem\SharpFileSystem.csproj">
-      <Project>{3C4D07BA-23B5-4A63-92CF-F3BF892B7329}</Project>
-      <Name>SharpFileSystem</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SharpFileSystem.Resources\SharpFileSystem.Resources.csproj">
-      <Project>{34CA60AC-D3A0-4A58-BCE1-3CEA55844715}</Project>
-      <Name>SharpFileSystem.Resources</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SharpFileSystem.SevenZip\SharpFileSystem.SevenZip.csproj">
-      <Project>{EA7CBA29-CFA8-4945-BB64-CCF25078190E}</Project>
-      <Name>SharpFileSystem.SevenZip</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SharpFileSystem.SharpZipLib\SharpFileSystem.SharpZipLib.csproj">
-      <Project>{E0BAC37A-07E5-4192-8BD9-51C7CA66C165}</Project>
-      <Name>SharpFileSystem.SharpZipLib</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="SharpZipLib\Content\test.zip">
