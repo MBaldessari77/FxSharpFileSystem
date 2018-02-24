@@ -2,8 +2,8 @@ language: csharp
 solution: FxCommon.sln
 dotnet: 2.0.0
 install:
-  - nuget restore FxCommonStandard.sln
+  - nuget restore SharpFileSystem.sln
 script:
   - dotnet restore
   - dotnet build
-  - dotnet test FxCommonStandard.Tests
+  - dotnet test SharpFileSystem.Tests
