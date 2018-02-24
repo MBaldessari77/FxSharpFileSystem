@@ -1,5 +1,7 @@
 # SharpFileSystem
 
+[![Build Status](https://travis-ci.org/waldrix/sharpfilesystem.svg?branch=develop)](https://travis-ci.org/waldrix/sharpfilesystem)
+
 ## Motivation
 
 After looking a long time for a VFS for .NET, so that I could read files and directories in archives (zip and rar) the same way as any ordinary files and directories. I couldn't find any complete solution for this problem, so I decided to implement a VFS myself. Also what I didn't like in the ordinary filesystems was the path-system. It allowed relative paths (like ..), which can often lead to security issues without explicit checking. It allows referring to directories the same way as referring to files. This often leads to strange behavior, like copying a directory (source) to another directory (destination), here it is often vague whether the destination directory should be overwritten or if it should copy the source-directory inside the destination-directory.
