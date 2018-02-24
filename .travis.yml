@@ -1,13 +1,9 @@
 language: csharp
-mono:
-  - latest
-os:
-  - linux
-  - osx
-solution: SharpFileSystem.sln
+solution: FxCommon.sln
+dotnet: 2.0.0
 install:
-  - nuget restore SharpFileSystem.sln
+  - nuget restore FxCommonStandard.sln
 script:
-  - xbuild /p:Configuration=Debug SharpFileSystem.sln
-  - xbuild /p:Configuration=Release SharpFileSystem.sln
-  - mono packages/NUnit.ConsoleRunner.3.4.1/tools/nunit3-console.exe SharpFileSystem.Tests/bin/Debug/SharpFileSystem.Tests.dll
+  - dotnet restore
+  - dotnet build
+  - dotnet test FxCommonStandard.Tests
