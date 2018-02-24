@@ -4,6 +4,7 @@ using System.Threading;
 
 namespace SharpFileSystem.IO
 {
+	// ReSharper disable once UnusedMember.Global
 	public class ProducerConsumerStream : Stream
 	{
 		readonly CircularBuffer<byte> _buffer = new CircularBuffer<byte>(4096);

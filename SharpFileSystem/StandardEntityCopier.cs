@@ -3,11 +3,12 @@ using System.IO;
 
 namespace SharpFileSystem
 {
+	// ReSharper disable once UnusedMember.Global
 	public class StandardEntityCopier : IEntityCopier
 	{
 		public StandardEntityCopier() { BufferSize = 65536; }
 
-		public int BufferSize { get; set; }
+		int BufferSize { get; }
 
 		public void Copy(IFileSystem source, FileSystemPath sourcePath, IFileSystem destination, FileSystemPath destinationPath)
 		{

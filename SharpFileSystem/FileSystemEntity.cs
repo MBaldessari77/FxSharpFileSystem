@@ -12,6 +12,7 @@ namespace SharpFileSystem
 
 		public IFileSystem FileSystem { get; }
 		public FileSystemPath Path { get; }
+		// ReSharper disable once UnusedMember.Global
 		public string Name => Path.EntityName;
 
 		bool IEquatable<FileSystemEntity>.Equals(FileSystemEntity other) { return FileSystem.Equals(other.FileSystem) && Path.Equals(other.Path); }

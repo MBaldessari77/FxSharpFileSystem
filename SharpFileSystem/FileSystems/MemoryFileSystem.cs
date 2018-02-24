@@ -39,8 +39,7 @@ namespace SharpFileSystem.FileSystems
 		{
 			if (!path.IsFile)
 				throw new ArgumentException("The specified path is no file.", "path");
-			MemoryFile file;
-			if (!_files.TryGetValue(path, out file))
+			if (!_files.TryGetValue(path, out var file))
 				throw new FileNotFoundException();
 			return new MemoryFileStream(file);
 		}
@@ -49,10 +48,9 @@ namespace SharpFileSystem.FileSystems
 		{
 			if (!path.IsDirectory)
 				throw new ArgumentException("The specified path is no directory.", "path");
-			ISet<FileSystemPath> subentities;
 			if (_directories.ContainsKey(path))
 				throw new ArgumentException("The specified directory-path already exists.", "path");
-			if (!_directories.TryGetValue(path.ParentPath, out subentities))
+			if (!_directories.TryGetValue(path.ParentPath, out var subentities))
 				throw new DirectoryNotFoundException();
 			subentities.Add(path);
 			_directories[path] = new HashSet<FileSystemPath>();
@@ -63,10 +61,7 @@ namespace SharpFileSystem.FileSystems
 			if (path.IsRoot)
 				throw new ArgumentException("The root cannot be deleted.");
 			bool removed;
-			if (path.IsDirectory)
-				removed = _directories.Remove(path);
-			else
-				removed = _files.Remove(path);
+			removed = path.IsDirectory ? _directories.Remove(path) : _files.Remove(path);
 			if (!removed)
 				throw new ArgumentException("The specified path does not exist.");
 			var parent = _directories[path.ParentPath];
@@ -75,25 +70,25 @@ namespace SharpFileSystem.FileSystems
 
 		public void Dispose() { }
 
-		public class MemoryFile
+		class MemoryFile
 		{
 			public MemoryFile()
 				: this(new byte[0])
 			{
 			}
 
-			public MemoryFile(byte[] content) { Content = content; }
+			MemoryFile(byte[] content) { Content = content; }
 
 			public byte[] Content { get; set; }
 		}
 
-		public class MemoryFileStream : Stream
+		class MemoryFileStream : Stream
 		{
 			readonly MemoryFile _file;
 
 			public MemoryFileStream(MemoryFile file) { _file = file; }
 
-			public byte[] Content { get => _file.Content; set => _file.Content = value; }
+			byte[] Content { get => _file.Content; set => _file.Content = value; }
 
 			public override bool CanRead => true;
 

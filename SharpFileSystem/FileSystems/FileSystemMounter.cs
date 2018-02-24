@@ -5,6 +5,7 @@ using SharpFileSystem.Collections;
 
 namespace SharpFileSystem.FileSystems
 {
+	// ReSharper disable once UnusedMember.Global
 	public class FileSystemMounter : IFileSystem
 	{
 		public FileSystemMounter(IEnumerable<KeyValuePair<FileSystemPath, IFileSystem>> mounts)
@@ -19,6 +20,7 @@ namespace SharpFileSystem.FileSystems
 		{
 		}
 
+		// ReSharper disable once MemberCanBePrivate.Global
 		public ICollection<KeyValuePair<FileSystemPath, IFileSystem>> Mounts { get; }
 
 		public void Dispose()
@@ -64,6 +66,6 @@ namespace SharpFileSystem.FileSystems
 			pair.Value.Delete(path.RemoveParent(pair.Key));
 		}
 
-		protected KeyValuePair<FileSystemPath, IFileSystem> Get(FileSystemPath path) { return Mounts.First(pair => pair.Key == path || pair.Key.IsParentOf(path)); }
+		KeyValuePair<FileSystemPath, IFileSystem> Get(FileSystemPath path) { return Mounts.First(pair => pair.Key == path || pair.Key.IsParentOf(path)); }
 	}
 }

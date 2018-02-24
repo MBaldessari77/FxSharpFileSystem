@@ -255,7 +255,7 @@ namespace SharpFileSystem.Tests
 					.All(d => d.ParentPath == _root)
 			);
 
-			Assert.False(!Files.All(f => f.RemoveChild(_root.AppendFile(f.EntityName)) == f.ParentPath));
+			Assert.False(Files != null && Files.Any(f => f.RemoveChild(_root.AppendFile(f.EntityName)) != f.ParentPath));
 			EAssert.Throws<InvalidOperationException>(() => Assert.Equal(_root.ParentPath, _root.ParentPath));
 		}
 

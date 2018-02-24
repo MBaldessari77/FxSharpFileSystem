@@ -30,11 +30,12 @@ namespace SharpFileSystem.IO
 			AllowOverflow = allowOverflow;
 		}
 
-		public bool AllowOverflow { get; }
+		bool AllowOverflow { get; }
 
 		public int Capacity
 		{
 			get => _capacity;
+			// ReSharper disable once UnusedMember.Global
 			set
 			{
 				if (value == _capacity)
@@ -53,7 +54,7 @@ namespace SharpFileSystem.IO
 			}
 		}
 
-		public int Size { get; set; }
+		public int Size { get; private set; }
 
 		public bool Contains(T item)
 		{
@@ -81,7 +82,7 @@ namespace SharpFileSystem.IO
 			_tail = 0;
 		}
 
-		public void CopyTo(T[] array, int arrayIndex) { CopyTo(0, array, arrayIndex, Size); }
+		public void CopyTo(T[] array, int arrayIndex = 0) { CopyTo(array, arrayIndex, Size); }
 
 		#region IEnumerable<T> Members
 
@@ -95,6 +96,7 @@ namespace SharpFileSystem.IO
 
 		#endregion
 
+		// ReSharper disable once UnusedMember.Global
 		public int Put(T[] src) { return Put(src, 0, src.Length); }
 
 		public int Put(T[] src, int offset, int count)
@@ -112,7 +114,7 @@ namespace SharpFileSystem.IO
 			return realCount;
 		}
 
-		public void Put(T item)
+		void Put(T item)
 		{
 			if (!AllowOverflow && Size == _capacity)
 				throw new InternalBufferOverflowException("Buffer is full.");
@@ -123,6 +125,7 @@ namespace SharpFileSystem.IO
 			Size++;
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public void Skip(int count)
 		{
 			_head += count;
@@ -130,6 +133,7 @@ namespace SharpFileSystem.IO
 				_head -= _capacity;
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public T[] Get(int count)
 		{
 			var dst = new T[count];
@@ -137,7 +141,8 @@ namespace SharpFileSystem.IO
 			return dst;
 		}
 
-		public int Get(T[] dst) { return Get(dst, 0, dst.Length); }
+		// ReSharper disable once UnusedMethodReturnValue.Local
+		int Get(T[] dst) { return Get(dst, 0, dst.Length); }
 
 		public int Get(T[] dst, int offset, int count)
 		{
@@ -154,7 +159,8 @@ namespace SharpFileSystem.IO
 			return realCount;
 		}
 
-		public T Get()
+		// ReSharper disable once UnusedMethodReturnValue.Local
+		T Get()
 		{
 			if (Size == 0)
 				throw new InvalidOperationException("Buffer is empty.");
@@ -166,13 +172,10 @@ namespace SharpFileSystem.IO
 			return item;
 		}
 
-		public void CopyTo(T[] array) { CopyTo(array, 0); }
-
-		public void CopyTo(int index, T[] array, int arrayIndex, int count)
+		void CopyTo(T[] array, int arrayIndex, int count)
 		{
 			if (count > Size)
-				throw new ArgumentOutOfRangeException("count",
-					"count cannot be greater than the buffer size.");
+				throw new ArgumentOutOfRangeException("count", "count cannot be greater than the buffer size.");
 
 			var bufferIndex = _head;
 			for (var i = 0; i < count; i++, bufferIndex++, arrayIndex++)
@@ -183,7 +186,7 @@ namespace SharpFileSystem.IO
 			}
 		}
 
-		public IEnumerator<T> GetEnumerator()
+		IEnumerator<T> GetEnumerator()
 		{
 			var bufferIndex = _head;
 			for (var i = 0; i < Size; i++, bufferIndex++)
@@ -195,8 +198,10 @@ namespace SharpFileSystem.IO
 			}
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public T[] GetBuffer() { return _buffer; }
 
+		// ReSharper disable once UnusedMember.Global
 		public T[] ToArray()
 		{
 			var dst = new T[Size];

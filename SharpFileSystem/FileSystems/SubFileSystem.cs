@@ -5,6 +5,7 @@ using SharpFileSystem.Collections;
 
 namespace SharpFileSystem.FileSystems
 {
+	// ReSharper disable once UnusedMember.Global
 	public class SubFileSystem : IFileSystem
 	{
 		public SubFileSystem(IFileSystem fileSystem, FileSystemPath root)
@@ -13,15 +14,15 @@ namespace SharpFileSystem.FileSystems
 			Root = root;
 		}
 
-		public IFileSystem FileSystem { get; }
-		public FileSystemPath Root { get; }
+		IFileSystem FileSystem { get; }
+		FileSystemPath Root { get; }
 
 		public void Dispose() { FileSystem.Dispose(); }
 
 		public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
 		{
 			var paths = FileSystem.GetEntities(AppendRoot(path));
-			return new EnumerableCollection<FileSystemPath>(paths.Select(p => RemoveRoot(p)), paths.Count);
+			return new EnumerableCollection<FileSystemPath>(paths.Select(RemoveRoot), paths.Count);
 		}
 
 		public bool Exists(FileSystemPath path) { return FileSystem.Exists(AppendRoot(path)); }
@@ -34,8 +35,8 @@ namespace SharpFileSystem.FileSystems
 
 		public void Delete(FileSystemPath path) { FileSystem.Delete(AppendRoot(path)); }
 
-		protected FileSystemPath AppendRoot(FileSystemPath path) { return Root.AppendPath(path); }
+		FileSystemPath AppendRoot(FileSystemPath path) { return Root.AppendPath(path); }
 
-		protected FileSystemPath RemoveRoot(FileSystemPath path) { return path.RemoveParent(Root); }
+		FileSystemPath RemoveRoot(FileSystemPath path) { return path.RemoveParent(Root); }
 	}
 }

@@ -5,12 +5,14 @@ using System.Linq;
 
 namespace SharpFileSystem.FileSystems
 {
+	// ReSharper disable once UnusedMember.Global
 	public class MergedFileSystem : IFileSystem
 	{
 		public MergedFileSystem(IEnumerable<IFileSystem> fileSystems) { FileSystems = fileSystems.ToArray(); }
 
 		public MergedFileSystem(params IFileSystem[] fileSystems) { FileSystems = fileSystems.ToArray(); }
 
+		// ReSharper disable once MemberCanBePrivate.Global
 		public IEnumerable<IFileSystem> FileSystems { get; }
 
 		public void Dispose()
@@ -61,6 +63,6 @@ namespace SharpFileSystem.FileSystems
 				fs.Delete(path);
 		}
 
-		public IFileSystem GetFirst(FileSystemPath path) { return FileSystems.FirstOrDefault(fs => fs.Exists(path)); }
+		IFileSystem GetFirst(FileSystemPath path) { return FileSystems.FirstOrDefault(fs => fs.Exists(path)); }
 	}
 }

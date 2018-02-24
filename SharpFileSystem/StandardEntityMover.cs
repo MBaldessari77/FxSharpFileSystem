@@ -8,7 +8,7 @@ namespace SharpFileSystem
 	{
 		public StandardEntityMover() { BufferSize = 65536; }
 
-		public int BufferSize { get; set; }
+		int BufferSize { get; }
 
 		public void Move(IFileSystem source, FileSystemPath sourcePath, IFileSystem destination, FileSystemPath destinationPath)
 		{

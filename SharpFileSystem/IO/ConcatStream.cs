@@ -3,6 +3,7 @@ using System.IO;
 
 namespace SharpFileSystem.IO
 {
+	// ReSharper disable once UnusedMember.Global
 	public class ConcatStream : Stream
 	{
 		readonly long[] _offsets;
@@ -27,7 +28,9 @@ namespace SharpFileSystem.IO
 			}
 		}
 
+		// ReSharper disable once MemberCanBePrivate.Global
 		public Stream CurrentStream => _streams[_streamIndex];
+		// ReSharper disable once MemberCanBePrivate.Global
 		public long CurrentStreamOffset => _offsets[_streamIndex];
 		public override bool CanRead => true;
 		public override bool CanSeek => true;

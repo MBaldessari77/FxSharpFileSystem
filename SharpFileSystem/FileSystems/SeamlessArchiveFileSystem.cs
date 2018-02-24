@@ -5,14 +5,15 @@ using System.Linq;
 
 namespace SharpFileSystem.FileSystems
 {
+	// ReSharper disable once UnusedMember.Global
 	public abstract class SeamlessArchiveFileSystem : IFileSystem
 	{
-		public static readonly char ArchiveDirectorySeparator = '#';
+		const char ArchiveDirectorySeparator = '#';
 
 		readonly FileSystemUsage _rootUsage;
 		readonly IDictionary<File, FileSystemUsage> _usedArchives = new Dictionary<File, FileSystemUsage>();
 
-		public SeamlessArchiveFileSystem(IFileSystem fileSystem)
+		protected SeamlessArchiveFileSystem(IFileSystem fileSystem)
 		{
 			FileSystem = fileSystem;
 			_rootUsage = new FileSystemUsage
@@ -23,7 +24,7 @@ namespace SharpFileSystem.FileSystems
 			};
 		}
 
-		public IFileSystem FileSystem { get; }
+		IFileSystem FileSystem { get; }
 
 		public ICollection<FileSystemPath> GetEntities(FileSystemPath path)
 		{
@@ -32,10 +33,7 @@ namespace SharpFileSystem.FileSystems
 				var fileSystem = r.FileSystem;
 
 				FileSystemPath parentPath;
-				if (TryGetArchivePath(path, out parentPath))
-					parentPath = ArchiveFileToDirectory(parentPath);
-				else
-					parentPath = FileSystemPath.Root;
+				parentPath = TryGetArchivePath(path, out parentPath) ? ArchiveFileToDirectory(parentPath) : FileSystemPath.Root;
 				var entities = new LinkedList<FileSystemPath>();
 				foreach (var ep in fileSystem.GetEntities(GetRelativePath(path)))
 				{
@@ -72,14 +70,13 @@ namespace SharpFileSystem.FileSystems
 			FileSystem.Dispose();
 		}
 
-		public void UnuseFileSystem(FileSystemReference reference)
+		void UnuseFileSystem(FileSystemReference reference)
 		{
 			// When root filesystem was used.
 			if (reference.Usage.ArchiveFile == null)
 				return;
 
-			FileSystemUsage usage;
-			if (!_usedArchives.TryGetValue(reference.Usage.ArchiveFile, out usage))
+			if (!_usedArchives.TryGetValue(reference.Usage.ArchiveFile, out var usage))
 				throw new ArgumentException("The specified reference is not valid.");
 			if (!usage.References.Remove(reference))
 				throw new ArgumentException("The specified reference does not exist.");
@@ -109,9 +106,10 @@ namespace SharpFileSystem.FileSystems
 			return FileSystemPath.Parse(s.Substring(sindex + 1));
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		protected bool HasArchive(FileSystemPath path) { return path.ToString().LastIndexOf($"{ArchiveDirectorySeparator}{ArchiveDirectorySeparator}", StringComparison.OrdinalIgnoreCase) >= 0; }
 
-		protected bool TryGetArchivePath(FileSystemPath path, out FileSystemPath archivePath)
+		bool TryGetArchivePath(FileSystemPath path, out FileSystemPath archivePath)
 		{
 			var p = path.ToString();
 			var sindex = p.LastIndexOf($"{ArchiveDirectorySeparator}{ArchiveDirectorySeparator}", StringComparison.OrdinalIgnoreCase);
@@ -125,10 +123,9 @@ namespace SharpFileSystem.FileSystems
 			return true;
 		}
 
-		protected FileSystemReference Refer(FileSystemPath path)
+		FileSystemReference Refer(FileSystemPath path)
 		{
-			FileSystemPath archivePath;
-			if (TryGetArchivePath(path, out archivePath))
+			if (TryGetArchivePath(path, out var archivePath))
 				return CreateArchiveReference(archivePath);
 			return new FileSystemReference(_rootUsage);
 		}
@@ -145,8 +142,7 @@ namespace SharpFileSystem.FileSystems
 
 		FileSystemEntity GetActualLocation(FileSystemPath path)
 		{
-			FileSystemPath archivePath;
-			if (!TryGetArchivePath(path, out archivePath))
+			if (!TryGetArchivePath(path, out var archivePath))
 				return FileSystemEntity.Create(FileSystem, path);
 			var archiveFile = (File) GetActualLocation(archivePath);
 			var usage = GetArchiveFs(archiveFile);
@@ -155,8 +151,7 @@ namespace SharpFileSystem.FileSystems
 
 		FileSystemUsage GetArchiveFs(File archiveFile)
 		{
-			FileSystemUsage usage;
-			if (_usedArchives.TryGetValue(archiveFile, out usage)) return usage;
+			if (_usedArchives.TryGetValue(archiveFile, out var usage)) return usage;
 
 			var archiveFs = CreateArchiveFileSystem(archiveFile);
 			usage = new FileSystemUsage
@@ -172,6 +167,7 @@ namespace SharpFileSystem.FileSystems
 
 		protected abstract IFileSystem CreateArchiveFileSystem(File archiveFile);
 
+		// ReSharper disable once UnusedMember.Global
 		public class DummyDisposable : IDisposable
 		{
 			public void Dispose() { }
@@ -181,10 +177,8 @@ namespace SharpFileSystem.FileSystems
 		{
 			public FileSystemReference(FileSystemUsage usage) { Usage = usage; }
 
-			public FileSystemUsage Usage { get; set; }
-
+			public FileSystemUsage Usage { get; }
 			public IFileSystem FileSystem => Usage.FileSystem;
-
 			public void Dispose() { Usage.Owner.UnuseFileSystem(this); }
 		}
 
@@ -195,10 +189,10 @@ namespace SharpFileSystem.FileSystems
 			public SeamlessArchiveFileSystem Owner { get; set; }
 			public File ArchiveFile { get; set; }
 			public IFileSystem FileSystem { get; set; }
-			public ICollection<FileSystemReference> References { get; set; }
+			public ICollection<FileSystemReference> References { get; }
 		}
 
-		public class SafeReferenceStream : Stream
+		class SafeReferenceStream : Stream
 		{
 			readonly FileSystemReference _reference;
 			readonly Stream _stream;

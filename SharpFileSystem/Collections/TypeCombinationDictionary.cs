@@ -8,7 +8,7 @@ namespace SharpFileSystem.Collections
 	{
 		readonly LinkedList<TypeCombinationEntry> _registrations = new LinkedList<TypeCombinationEntry>();
 
-		public IEnumerable<TypeCombinationEntry> GetSupportedRegistrations(Type sourceType, Type destinationType)
+		IEnumerable<TypeCombinationEntry> GetSupportedRegistrations(Type sourceType, Type destinationType)
 		{
 			return
 				_registrations.Where(
@@ -31,6 +31,7 @@ namespace SharpFileSystem.Collections
 			return true;
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public void AddFirst(Type sourceType, Type destinationType, T value) { _registrations.AddFirst(new TypeCombinationEntry(sourceType, destinationType, value)); }
 
 		public void AddLast(Type sourceType, Type destinationType, T value) { _registrations.AddLast(new TypeCombinationEntry(sourceType, destinationType, value)); }

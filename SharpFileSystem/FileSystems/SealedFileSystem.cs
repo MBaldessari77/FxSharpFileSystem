@@ -3,6 +3,7 @@ using System.IO;
 
 namespace SharpFileSystem.FileSystems
 {
+	// ReSharper disable once UnusedMember.Global
 	public class SealedFileSystem : IFileSystem
 	{
 		public SealedFileSystem(IFileSystem parent) { Parent = parent; }

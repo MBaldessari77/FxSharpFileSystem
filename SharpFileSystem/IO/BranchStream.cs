@@ -2,6 +2,7 @@ using System.IO;
 
 namespace SharpFileSystem.IO
 {
+	// ReSharper disable once UnusedMember.Global
 	public class BranchStream : Stream
 	{
 		readonly Stream _readStream;

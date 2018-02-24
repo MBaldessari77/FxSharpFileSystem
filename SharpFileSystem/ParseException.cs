@@ -4,6 +4,7 @@ namespace SharpFileSystem
 {
 	public class ParseException : Exception
 	{
+		// ReSharper disable once UnusedMember.Global
 		public ParseException(string input)
 			: base("Could not parse input \"" + input + "\"")
 		{
@@ -18,7 +19,11 @@ namespace SharpFileSystem
 			Reason = reason;
 		}
 
+		// ReSharper disable UnusedAutoPropertyAccessor.Global
+		// ReSharper disable MemberCanBePrivate.Global
 		public string Input { get; }
 		public string Reason { get; }
+		// ReSharper restore MemberCanBePrivate.Global
+		// ReSharper restore UnusedAutoPropertyAccessor.Global
 	}
 }

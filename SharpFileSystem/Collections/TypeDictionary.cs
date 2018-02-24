@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 namespace SharpFileSystem.Collections
 {
+	// ReSharper disable once UnusedMember.Global
 	public class TypeDictionary<T> : ITypeDictionary<T>, IServiceProvider
 	{
 		#region Private Fields
@@ -39,8 +40,7 @@ namespace SharpFileSystem.Collections
 
 		ICollection<T> EnsureType(Type type)
 		{
-			ICollection<T> result;
-			if (_types.TryGetValue(type, out result))
+			if (_types.TryGetValue(type, out var result))
 				return result;
 			return AddType(type);
 		}
@@ -80,8 +80,7 @@ namespace SharpFileSystem.Collections
 			var itemType = item.GetType();
 			foreach (var type in GetSubTypes(itemType))
 			{
-				ICollection<T> itemsOfType;
-				if (_types.TryGetValue(type, out itemsOfType))
+				if (_types.TryGetValue(type, out var itemsOfType))
 				{
 					if (!itemsOfType.Remove(item)) return false;
 					if (itemsOfType.Count == 0)
@@ -108,16 +107,15 @@ namespace SharpFileSystem.Collections
 
 		public IEnumerable<T> Get(Type type)
 		{
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out var itemsOfType))
 				foreach (var item in itemsOfType)
 					yield return item;
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public IEnumerable<TGet> Get<TGet>()
 		{
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(typeof(TGet), out itemsOfType))
+			if (_types.TryGetValue(typeof(TGet), out var itemsOfType))
 				foreach (object item in itemsOfType)
 					yield return (TGet) item;
 		}
@@ -131,13 +129,13 @@ namespace SharpFileSystem.Collections
 			if (type.IsAbstract)
 				throw new ArgumentException("The specified type is not a instantiatable type and cannot be explicitly returned.", "type");
 			ValidateType(type);
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out var itemsOfType))
 				foreach (var item in itemsOfType)
 					if (item.GetType() == type)
 						yield return item;
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public IEnumerable<TGet> GetExplicit<TGet>()
 			where TGet : T
 		{
@@ -151,13 +149,13 @@ namespace SharpFileSystem.Collections
 
 		public T GetSingle(Type type)
 		{
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out var itemsOfType))
 				foreach (var item in itemsOfType)
 					return item;
 			return default(T);
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public TGet GetSingle<TGet>() { return (TGet) (object) GetSingle(typeof(TGet)); }
 
 		#endregion
@@ -169,14 +167,14 @@ namespace SharpFileSystem.Collections
 			if (type.IsAbstract)
 				throw new ArgumentException("The specified type is not a instantiatable type and cannot be explicitly returned.", "type");
 			ValidateType(type);
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(type, out itemsOfType))
+			if (_types.TryGetValue(type, out var itemsOfType))
 				foreach (var item in itemsOfType)
 					if (item.GetType() == type)
 						return item;
 			return default(T);
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public TGet GetSingleExplicit<TGet>()
 			where TGet : T
 		{
@@ -194,6 +192,7 @@ namespace SharpFileSystem.Collections
 			return _types.ContainsKey(type);
 		}
 
+		// ReSharper disable once UnusedMember.Global
 		public bool Contains<TContains>() { return Contains(typeof(TContains)); }
 
 		public bool Contains(T item)
@@ -201,8 +200,7 @@ namespace SharpFileSystem.Collections
 			if (item == null)
 				return false;
 			var itemType = item.GetType();
-			ICollection<T> itemsOfType;
-			if (_types.TryGetValue(itemType, out itemsOfType))
+			if (_types.TryGetValue(itemType, out var itemsOfType))
 				return itemsOfType.Contains(item);
 			return false;
 		}

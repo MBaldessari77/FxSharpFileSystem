@@ -2,6 +2,7 @@ using SharpFileSystem.FileSystems;
 
 namespace SharpFileSystem
 {
+	// ReSharper disable once UnusedMember.Global
 	public class PhysicalEntityCopier : IEntityCopier
 	{
 		public void Copy(IFileSystem source, FileSystemPath sourcePath, IFileSystem destination, FileSystemPath destinationPath)

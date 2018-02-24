@@ -13,6 +13,7 @@ namespace SharpFileSystem
 
 		readonly string _path;
 
+		// ReSharper disable once MemberCanBePrivate.Global
 		public string Path => _path ?? "/";
 		public bool IsDirectory => Path[Path.Length - 1] == DirectorySeparator;
 		public bool IsFile => !IsDirectory;
@@ -185,8 +186,8 @@ namespace SharpFileSystem
 		[Pure]
 		public override bool Equals(object obj)
 		{
-			if (obj is FileSystemPath)
-				return Equals((FileSystemPath) obj);
+			if (obj is FileSystemPath path)
+				return Equals(path);
 			return false;
 		}
 
