@@ -1,6 +1,6 @@
-# SharpFileSystem
+# FxSharpFileSystem
 
-[![Build Status](https://travis-ci.org/waldrix/sharpfilesystem.svg?branch=develop)](https://travis-ci.org/waldrix/sharpfilesystem)
+[![Build Status](https://travis-ci.org/waldrix/FxSharpFileSystem.svg?branch=develop)](https://travis-ci.org/waldrix/FxSharpFileSystem)
 
 ## Motivation
 
